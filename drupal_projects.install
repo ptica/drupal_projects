@@ -1,0 +1,280 @@
+<?php
+function drupal_projects_install() {
+	// create the content type
+	node_types_rebuild();
+	$types = node_type_get_types();
+	
+	// add the body field to the node type
+	node_add_body_field($types['drupal_projects']);
+	
+	// load the instance definition for our content type's body
+	$body_instance = field_info_instance('node', 'body', 'drupal_projects');
+	// configure the body field
+	$body_instance['type'] = 'text_summary_or_trimmed';
+	$body_instance['label'] = 'Project Homepage';
+	$body_instance['display'] = array(
+		'default' => array(
+			'label' => 'hidden', 
+			'type' => 'text_default',
+			'weight' => 1,
+		),
+		'teaser' => array(
+			'label' => 'hidden', 
+			'type' => 'text_summary_or_trimmed',
+			'weight' => 0,
+		),
+	);
+	$body_instance['widget']['weight'] = 1;
+	
+	// save our changes to the body field instance
+	field_update_instance($body_instance);
+	
+	// disable comments for this content type
+	variable_set('comment_drupal_projects', COMMENT_NODE_CLOSED);
+	
+	// not promoted, ie. just published == status
+	variable_set('node_options_drupal_projects', array('status'));
+	// do not show submitted by info
+	variable_set('node_submitted_drupal_projects', 0);
+	//variable_set('menu_options_drupal_projects', array('user-menu'));
+	//variable_set('menu_parent_drupal_projects', array('user-menu:0'));
+	
+	// Create taxonomy for project pages under Sections/Projects
+	$t = get_t();
+	$vocabulary = new stdClass();
+	$vocabulary->name = $t('Projects');
+	$vocabulary->module = 'taxonomy';
+	$vocabulary->machine_name = 'projects';
+	$vocabulary->description = $t('Access control for editorial content.');
+	$vocabulary->hierarchy = 0;
+	$vocabulary->weight = 0;
+	taxonomy_vocabulary_save($vocabulary);
+	variable_set('drupal_projects_vocabulary_id', $vocabulary->vid);
+	
+	
+	// add the body field to the node type
+	node_add_body_field($types['drupal_projects_page']);
+	
+	// load the instance definition for our content type's body
+	$body_instance = field_info_instance('node', 'body', 'drupal_projects_page');
+	// configure the body field
+	$body_instance['type'] = 'text_summary_or_trimmed';
+	$body_instance['label'] = 'Project page content';
+	$body_instance['display'] = array(
+			'default' => array(
+					'label' => 'hidden',
+					'type' => 'text_default',
+					'weight' => 1,
+			),
+			'teaser' => array(
+					'label' => 'hidden',
+					'type' => 'text_summary_or_trimmed',
+					'weight' => 0,
+			),
+	);
+	$body_instance['widget']['weight'] = 1;
+	
+	// save our changes to the body field instance
+	field_update_instance($body_instance);
+	
+	// disable comments for this content type
+	variable_set('comment_drupal_projects_page', COMMENT_NODE_CLOSED);
+	
+	// not promoted, ie. just published == status
+	variable_set('node_options_drupal_projects_page', array('status'));
+	// do not show submitted by info
+	variable_set('node_submitted_drupal_projects_page', 0);
+	
+	// Create all the fields we are adding to our content type.
+	foreach (_drupal_projects_installed_fields($vocabulary) as $field) {
+		field_create_field($field);
+	}
+	
+	// Create all the instances for our fields.
+	foreach (_drupal_projects_installed_instances() as $instance) {
+		$instance['entity_type'] = 'node';
+		$instance['bundle'] = 'drupal_projects';
+		field_create_instance($instance);
+		
+		if ($instance['field_name'] == 'drupal_projects_project') {
+			$instance['entity_type'] = 'node';
+			$instance['bundle'] = 'drupal_projects_page';
+			field_create_instance($instance);
+		}
+	}
+}
+
+/**
+ * Define the fields for our content type.
+ *
+ * This big array is factored into this function for readability.
+ *
+ * @return
+ *  An associative array specifying the fields we wish to add to our
+ *  new node type.
+ */
+function _drupal_projects_installed_fields($vocabulary) {
+	return array(
+		'drupal_projects_slogan' => array(
+			'field_name' => 'drupal_projects_slogan',
+			'type'       => 'text',
+			'cardinality' => 1,
+			'settings'    => array(
+					'max_length' => 60,
+			),
+		),
+		'drupal_projects_image' => array(
+			'field_name' => 'drupal_projects_image',
+			'type'       => 'image',
+			'cardinality' => 1,
+		),
+		'drupal_projects_project' => array(
+			'field_name' => 'drupal_projects_project',
+			'type' => 'taxonomy_term_reference',
+			// Set cardinality to unlimited for tagging.
+			'cardinality' => 1,
+			'instance_settings' => array(
+				'allowed_values' => array(
+					array(
+						'vocabulary' => $vocabulary->machine_name,
+						'parent' => 0,
+					),
+				),
+			),
+			'settings' => array(
+				'allowed_values' => array(
+					array(
+							'vocabulary' => $vocabulary->machine_name,
+							'parent' => 0,
+					),
+				),
+			),
+		),
+	);
+}
+
+/**
+ * Define the field instances for our content type.
+ *
+ * The instance lets Drupal know which widget to use to allow the user to enter
+ * data and how to react in different view modes.  We are going to display a
+ * page that uses a custom "node_example_list" view mode.  We will set a
+ * cardinality of three allowing our content type to give the user three color
+ * fields.
+ *
+ * This big array is factored into this function for readability.
+ *
+ * @return
+ *  An associative array specifying the instances we wish to add to our new
+ *  node type.
+ */
+function _drupal_projects_installed_instances() {
+	return array(
+		'drupal_projects_slogan' => array(
+			'field_name' => 'drupal_projects_slogan',
+			'label'      => t('Project Slogan'),
+			'required'   => false,
+			'widget'      => array(
+				'type'    => 'text_textfield',
+				'weight'  => 0.50,
+			),
+			'display' => array(
+				'default' => array('type' => 'hidden'),
+			),
+		),
+		'drupal_projects_image' => array(
+			'field_name'  => 'drupal_projects_image',
+			'label'       => t('Upload a project logo (will be scaled to 142x114px):'),
+			'required'    => FALSE,
+			'widget' => array(
+					'type'    => 'image_image',
+					'weight'  => 0.60,
+			),
+			'display' => array(
+				'default' => array('type' => 'hidden'),
+				'drupal_projects_list' => array(
+					'label' => 'hidden',
+					'type' => 'image_link_content__thumbnail',
+				),
+			),
+		),
+		'drupal_projects_project' => array(
+			'field_name' => 'drupal_projects_project',
+			'entity_type' => 'node',
+			'label' => 'Select a Project',
+			'bundle' => 'drupal_projects',
+			'required' => false,
+			'widget' => array(
+				'type' => 'options_select'
+			),
+			'display' => array(
+				'default' => array('type' => 'hidden'),
+				'teaser' => array('type' => 'hidden')
+			),
+		),
+	);
+}
+
+function drupal_projects_uninstall() {
+	// gather all the content while the module was enabled
+	$sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
+	$result = db_query($sql, array(':type' => 'drupal_projects'));
+	$nids = array();
+	foreach ($result as $row) {
+		$nids[] = $row->nid;
+		
+		// menu item
+		$menu = array(
+				'menu_name' => t($row->title),
+				'title'     => t($row->title),
+				'description' => 'This menu defines the core structure for the subsite '.$row->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		);
+		if (menu_load($menu['menu_name'])) {
+			menu_delete($menu);
+		}
+	}
+	
+	// delete all the nodes at once
+	node_delete_multiple($nids);
+	
+	// delete any remaining field instances attached to this content type
+	$instances = field_info_instances('node', 'drupal_projects');
+	foreach ($instances as $instance_name => $instance) {
+		field_delete_instance($instance);
+	}
+	
+	// delete our content type
+	node_type_delete('drupal_projects');
+	node_type_delete('drupal_projects_page');
+	
+	//
+	// find appropriate vocabulary:
+	$vocabulary_id = variable_get('drupal_projects_vocabulary_id');
+	taxonomy_vocabulary_delete($vocabulary_id);
+	
+	// purge all field information
+	field_purge_batch(1000);
+}
+
+/**
+ * Implements hook_enable().
+ */
+function drupal_projects_enable() {
+	// There is currently no way to manually flush an image style which causes
+	// problems when installing a new module that implements
+	// hook_image_styles_alter(). If the new module modifies an image style that
+	// modification will not be applied to any images that have already been
+	// generated unless the styles are flushed. This is one way around that.
+	$styles = image_styles();
+	foreach ($styles as $style) {
+		image_style_flush($style);
+	}
+}
+
+/**
+ * Implements hook_disable().
+ */
+function drupal_projects_disable() {
+	// Solves the same problem as drupal_projects_enable().
+	drupal_projects_enable();
+}

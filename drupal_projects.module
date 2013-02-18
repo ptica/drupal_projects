@@ -1,0 +1,193 @@
+<?php
+
+function drupal_projects_node_info() {
+
+	$items['drupal_projects'] = array(
+			'name' => t('New Project homepage'),    // name of your content type
+			'type' => 'drupal_projects',
+			'base' => 'node_content',
+			'description' => t('Project pages form a section of UFAL pages with own logo, slogan and main menu. UFAL logo in the right hand side of the header and a first link in main menu provide means of returning back to the UFAL homepage. Each project resides in an aptly named subdirectory.'),
+			'has_title' => '1',
+			'title_label' => t('Project name'),
+			'body_label' => t('Homepage content'),
+			'help' => t('Please fill in all fields.'),
+			'locked' => true,
+	);
+	
+	$items['drupal_projects_page'] = array(
+			'name' => t('Project page'),    // name of your content type
+			'type' => 'drupal_projects_page',
+			'base' => 'node_content',
+			'description' => t('Add an additional page into an existing project.'),
+			'has_title' => '1',
+			'title_label' => t('Page title'),
+			'body_label' => t('Page content'),
+			'help' => t('Please fill in all fields.'),
+			'locked' => true,
+	);
+
+	return $items;
+}
+
+function drupal_projects_form($node, $form_state) {
+	return node_content_form($node, $form_state);
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function drupal_projects_node_insert($node) {
+	$t = get_t();
+	
+	if ($node->type == 'drupal_projects') {
+		// create a new menu for the project minisite
+		$menu = array(
+			'menu_name' => $t($node->title),
+			'title'     => $t($node->title),
+			'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		);
+		if (!menu_load($menu['menu_name'])) {
+			menu_save($menu);
+			
+			$allowed_menus = variable_get('menu_options_drupal_projects_page');
+			$allowed_menus[]  = $menu['menu_name'];
+			variable_set('menu_options_drupal_projects_page', $allowed_menus);
+		}
+	}
+	
+	if ($node->type == 'drupal_projects_page') {
+		// add it to the menu
+		$project_ref = $node->drupal_projects_project;
+		$term = taxonomy_term_load($project_ref[$node->language][0]['tid']);
+		if (menu_load(@$term->name)) {
+			$item = array(
+				'link_path'  => drupal_get_normal_path('node/'.$node->nid),
+				'link_title' => $node->title,
+				'menu_name'  => $term->name,
+			);
+			menu_link_save($item);
+			menu_cache_clear_all();
+		}
+	}
+}
+
+function drupal_projects_node_presave($node) {
+	$t = get_t();
+	
+	if ($node->type == 'drupal_projects') {
+		// find appropriate vocabulary:
+		$vocabulary_id = variable_get('drupal_projects_vocabulary_id');
+		$vocabulary = taxonomy_vocabulary_load($vocabulary_id);
+		
+		$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
+		if (count($terms) > 0) {
+			// found existing
+			$newterm = array_shift($terms);
+		} else {
+			// add a taxonomy term
+			$newterm = new stdClass();
+			$newterm->name = $t($node->title);
+			$newterm->vid  = $vocabulary_id;
+			taxonomy_term_save($newterm);
+		}
+		
+		// attach
+		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
+	}
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function drupal_projects_node_delete($node) {
+	$t = get_t();
+	
+	if ($node->type == 'drupal_projects') {
+		// find appropriate vocabulary:
+		$vid = variable_get('drupal_projects_vocabulary_id');
+		$vocabulary = taxonomy_vocabulary_load($vid);
+	
+		// delete a taxonomy term
+		$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
+		if (count($terms) == 1) {
+			foreach ($terms as $term) {
+				taxonomy_term_delete($term->tid);
+			}
+		}
+	
+		// delete menu for the project minisite
+		$menu = array(
+				'menu_name' => $t($node->title),
+				'title'     => $t($node->title),
+				'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		);
+		if (menu_load($menu['menu_name'])) {
+			menu_delete($menu);
+		}
+	}
+}
+
+/**
+ * Implements hook_custom_theme
+ */
+function drupal_projects_custom_theme() {
+	//echo(drupal_get_path_alias());
+	
+	// find out if the current page is part of projects hierarchy
+	$node = node_load(arg(1));
+	$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
+	$term = taxonomy_term_load($tid);
+	
+	if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
+		// we got a project page
+		return 'drufal_project';
+	}
+}
+
+/**
+ * Implements hook_image_default_styles().
+ *
+ * hook_image_default_styles() declares to Drupal any image styles that are
+ * provided by the module. An image style is a collection of image effects that
+ * are performed in a specified order, manipulating the image and generating a
+ * new derivative image.
+ *
+ * This hook can be used to declare image styles that your module depends on or
+ * allow you to define image styles in code and gain the benefits of using
+ * a version control system.
+ */
+function drupal_projects_image_default_styles() {
+	// This hook returns an array, each component of which describes an image
+	// style. The array keys are the machine-readable image style names and
+	// to avoid namespace conflicts should begin with the name of the
+	// implementing module. e.g.) 'mymodule_stylename'. Styles names should
+	// use only alpha-numeric characters, underscores (_), and hyphens (-).
+	$styles = array();
+	$styles['drupal_projects_logo_style'] = array();
+
+	// Each style array consists of an 'effects' array that is made up of
+	// sub-arrays which define the individual image effects that are combined
+	// together to create the image style.
+	$styles['drupal_projects_logo_style']['effects'] = array(
+		array(
+				// Name of the image effect. See image_image_effect_info() in
+				// modules/image/image.effects.inc for a list of image effects available
+				// in Drupal 7 core.
+				'name' => 'image_scale',
+				// Arguments to pass to the effect callback function.
+				// The arguments that an effect accepts are documented with each
+				// individual image_EFFECT_NAME_effect function. See image_scale_effect()
+				// for an example.
+				'data' => array(
+						'width' => 142,
+						'height' => 114,
+						'upscale' => 0,
+				),
+				// The order in which image effects should be applied when using this
+				// style.
+				'weight' => 0,
+		),
+	);
+
+	return $styles;
+}

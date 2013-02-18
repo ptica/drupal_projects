@@ -1,0 +1,6 @@
+name = Projects Content Type
+description = A simple demonstration content type
+package = Drupal Projects
+core = 7.x
+files[] = drupal_projects.install
+files[] = drupal_projects.module
