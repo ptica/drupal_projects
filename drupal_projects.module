@@ -34,7 +34,22 @@ function drupal_projects_form($node, $form_state) {
 }
 
 /**
+ * Implements hook_init
+ */
+function drupal_projects_init() {
+	// beware: have to load it every time, not just only for admin ones
+	// as the overlay has the code in the parent window, which is ordinary node/nid page
+	$path = drupal_get_path('module', 'drupal_projects');
+	drupal_add_js($path . '/js/drupal_projects.js');
+	//drupal_add_css($path . '/mymodule.css');
+}
+
+/**
  * Implements hook_node_insert().
+ * 
+ * new project needs own menu
+ * new project added to the projects shortcuts
+ * $node already has $node->nid
  */
 function drupal_projects_node_insert($node) {
 	$t = get_t();
@@ -71,6 +86,10 @@ function drupal_projects_node_insert($node) {
 	}
 }
 
+/**
+ * vocabulary term added on hook_node_presave()
+ */
+
 function drupal_projects_node_presave($node) {
 	$t = get_t();
 	
@@ -93,6 +112,20 @@ function drupal_projects_node_presave($node) {
 		
 		// attach
 		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
+		
+		// add it to the shortcut set
+		$shortcut_set = shortcut_set_load('shortcut-set-2'); 
+		if ($shortcut_set && $newterm->tid) {
+			$shortcut_link = array(
+				'link_path' => 'admin/content',
+				'link_title' => $t($node->title),
+				'weight' => -20,
+				'menu_name' => $shortcut_set->set_name,
+				'plid' => 0,
+				'options' => array('query' => array('tid'=>$newterm->tid)),
+			);
+			menu_link_save($shortcut_link);
+		}
 	}
 }
 
@@ -123,6 +156,22 @@ function drupal_projects_node_delete($node) {
 		);
 		if (menu_load($menu['menu_name'])) {
 			menu_delete($menu);
+		}
+		
+		// Delete all menu module links that point to this node.
+		/* $set = db_select('menu_links', ss)
+		->fields('ss')
+		->condition('module', 'drupal_projects')
+		->execute()
+		->fetchObject();
+		 */
+		$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
+		foreach ($result as $m) {
+			$options = unserialize($m['options']);
+			$tid = $options['query']['tid'];
+			if ($tid == $node->nid) {
+				menu_link_delete($m['mlid']);
+			}
 		}
 	}
 }
@@ -191,3 +240,10 @@ function drupal_projects_image_default_styles() {
 
 	return $styles;
 }
+
+function drupal_projects_shortcut_default_set($account) {
+	return 'shortcut-set-projects';
+}
+
+// TODO set uri of taxonomy terms
+// http://dropbucket.org/node/92

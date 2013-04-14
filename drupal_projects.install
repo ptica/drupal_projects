@@ -102,7 +102,34 @@ function drupal_projects_install() {
 			field_create_instance($instance);
 		}
 	}
+	
+	_create_drupal_projects_shortcut_set();
 }
+
+/**
+ * Implements hook_install().
+ */
+function _create_drupal_projects_shortcut_set() {
+	$t = get_t();
+	// Create our shortcut set.
+	$shortcut_set = new stdClass();
+	$shortcut_set->title = $t('Projects');
+	$shortcut_set->links = array();
+	$shortcut_set->set_name = 'shortcut-set-projects';
+	// If Drupal is being installed, rebuild the menu before saving the shortcut
+	// set, to make sure the links defined above can be correctly saved. (During
+	// installation, the menu might not have been built at all yet, or it might
+	// have been built but without the node module's links in it.)
+	if (drupal_installation_attempted()) {
+		menu_rebuild();
+	}
+	shortcut_set_save($shortcut_set);
+}
+function _delete_drupal_projects_shortcut_set() {
+	$shortcut_set = shortcut_set_load('shortcut-set-projects');
+	shortcut_set_delete($shortcut_set);
+}
+
 
 /**
  * Define the fields for our content type.
@@ -248,6 +275,9 @@ function drupal_projects_uninstall() {
 	node_type_delete('drupal_projects_page');
 	
 	//
+	_delete_drupal_projects_shortcut_set();
+	
+	//
 	// find appropriate vocabulary:
 	$vocabulary_id = variable_get('drupal_projects_vocabulary_id');
 	taxonomy_vocabulary_delete($vocabulary_id);
@@ -275,6 +305,6 @@ function drupal_projects_enable() {
  * Implements hook_disable().
  */
 function drupal_projects_disable() {
-	// Solves the same problem as drupal_projects_enable().
+	// Deals with the same problem as drupal_projects_enable().
 	drupal_projects_enable();
 }

@@ -6,3 +6,7 @@ dependencies[] = taxonomy
 core = 7.x
 files[] = drupal_projects.install
 files[] = drupal_projects.module
+
+# project shortcuts need following patch applied
+# http://drupal.org/files/issues/shortcuts-query-params.3.patch
+# http://drupal.org/node/614498
