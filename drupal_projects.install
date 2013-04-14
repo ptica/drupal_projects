@@ -125,8 +125,12 @@ function _create_drupal_projects_shortcut_set() {
 	variable_set('drupal_projects_shortcut_set_name', $shortcut_set->set_name);
 }
 function _delete_drupal_projects_shortcut_set() {
-	$shortcut_set = shortcut_set_load('shortcut-set-projects');
+	$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
 	shortcut_set_delete($shortcut_set);
+	$result = db_query("SELECT * FROM {menu_links} WHERE menu_name = :menu_name", array(':menu_name'=>variable_get('drupal_projects_shortcut_set_name')), array('fetch' => PDO::FETCH_ASSOC));
+	foreach ($result as $m) {
+		menu_link_delete($m['mlid']);
+	}
 }
 
 
