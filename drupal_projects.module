@@ -242,7 +242,7 @@ function drupal_projects_image_default_styles() {
 }
 
 function drupal_projects_shortcut_default_set($account) {
-	return 'shortcut-set-projects';
+	return variable_get('drupal_projects_shortcut_set_name');
 }
 
 // TODO set uri of taxonomy terms
