@@ -114,7 +114,6 @@ function _create_drupal_projects_shortcut_set() {
 	// Create our shortcut set.
 	$shortcut_set = new stdClass();
 	$shortcut_set->title = $t('Projects');
-	$shortcut_set->links = array();
 	$shortcut_set->set_name = 'shortcut-set-projects';
 	// If Drupal is being installed, rebuild the menu before saving the shortcut
 	// set, to make sure the links defined above can be correctly saved. (During
