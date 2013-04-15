@@ -52,13 +52,15 @@ function drupal_projects_init() {
  * $node already has $node->nid
  */
 function drupal_projects_node_insert($node) {
+	module_load_include('inc', 'pathauto', 'pathauto');
 	$t = get_t();
 	
 	if ($node->type == 'drupal_projects') {
 		// create a new menu for the project minisite
 		$menu = array(
-			'menu_name' => $t($node->title),
+			'menu_name' => 'menu-' . pathauto_cleanstring($t($node->title)),
 			'title'     => $t($node->title),
+			'module'    => 'drupal_projects',
 			'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
 		);
 		if (!menu_load($menu['menu_name'])) {
@@ -74,11 +76,12 @@ function drupal_projects_node_insert($node) {
 		// add it to the menu
 		$project_ref = $node->drupal_projects_project;
 		$term = taxonomy_term_load($project_ref[$node->language][0]['tid']);
-		if (menu_load(@$term->name)) {
+		$menu_name = 'menu-' . pathauto_cleanstring(@$term->name);
+		if (menu_load($menu_name)) {
 			$item = array(
 				'link_path'  => drupal_get_normal_path('node/'.$node->nid),
 				'link_title' => $node->title,
-				'menu_name'  => $term->name,
+				'menu_name'  => $menu_name,
 			);
 			menu_link_save($item);
 			menu_cache_clear_all();
@@ -150,7 +153,7 @@ function drupal_projects_node_delete($node) {
 	
 		// delete menu for the project minisite
 		$menu = array(
-				'menu_name' => $t($node->title),
+				'menu_name' => 'menu-' . pathauto_cleanstring($t($node->title)),
 				'title'     => $t($node->title),
 				'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
 		);

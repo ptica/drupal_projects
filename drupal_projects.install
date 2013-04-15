@@ -255,8 +255,9 @@ function drupal_projects_uninstall() {
 		
 		// menu item
 		$menu = array(
-				'menu_name' => t($row->title),
+				'menu_name' => 'menu-' . pathauto_cleanstring(t($row->title)),
 				'title'     => t($row->title),
+				'module'    => 'drupal_projects',
 				'description' => 'This menu defines the core structure for the subsite '.$row->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
 		);
 		if (menu_load($menu['menu_name'])) {
