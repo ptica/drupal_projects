@@ -250,3 +250,80 @@ function drupal_projects_shortcut_default_set($account) {
 
 // TODO set uri of taxonomy terms
 // http://dropbucket.org/node/92
+
+function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
+	// only alter the jobs search exposed filter form
+	if ($vars['form']['#id'] == 'views-exposed-form-admin-views-node-system-1') {
+
+		// Change the text on the submit button
+		$vars['form']['submit']['#value'] = t('Search');
+
+		// Rebuild the rendered version (submit button, rest remains unchanged)
+		unset($vars['form']['submit']['#printed']);
+		$vars['button'] = drupal_render($vars['form']['submit']);
+	}
+}
+
+/**
+ * preselect the 
+ */
+function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
+	if ($form_id == 'drupal_projects_page_node_form') {
+		if (is_numeric(arg(3))) {
+			$preselected_project_tid = arg(3);
+			$form["drupal_projects_project"]["und"]['#default_value'] = $preselected_project_tid;
+		}
+	}
+}
+function drupal_projects_views_bulk_operations_form_alter(&$form, &$form_state, $vbo) {
+	// collapse the 
+	if ($form['#form_id'] =='views_form_admin_views_node_system_1') {
+		$form['select']['#collapsed'] = TRUE;
+		$form['select']['#weight'] = 100;
+	}
+}
+
+/**
+ * implements hook_preprocess_views_view
+ * Wrap exposed filters in a fieldset. 
+ */
+function drupal_projects_preprocess_views_view(&$vars) {
+	if ($vars['exposed']) {
+		drupal_add_js('misc/form.js');
+		drupal_add_js('misc/collapse.js');
+		// Default collapsed
+		$collapsed = TRUE;
+		$class = array('collapsible', 'collapsed');
+		if ((isset($_GET['tid']) && count($_GET) > 2) || ((!isset($_GET['tid']) && count($_GET) > 1))) {
+			// assume other get vars are exposed filters, so expand fieldset
+			// to show applied filters
+			$collapsed = FALSE;
+			$class = array('collapsible');
+		}
+		$fieldset['element'] = array(
+				'#title' => t('Filter'),
+				'#collapsible' => TRUE,
+				'#collapsed' => $collapsed,
+				'#attributes' => array('class' => $class),
+				'#children' => $vars['exposed'],
+		);
+		$vars['exposed'] = theme('fieldset', $fieldset);
+	}
+}
+
+function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+	switch ($root_path){
+		case 'admin/content':
+			$item = menu_get_item('node/add/drupal-projects-page/' . $_GET['tid']);
+			// customize the link
+			$item['href'] .= '/'.$_GET['tid'];
+			$item['title'] = t('Add page to project');
+			if ($item['access']) {
+				$data['actions']['output'][] = array(
+					'#theme' => 'menu_local_action',
+					'#link' => $item,
+				);
+			}
+			break;
+	}
+}
