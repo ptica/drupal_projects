@@ -1,4 +1,7 @@
 <?php
+/**
+ * Implements hook_install().
+ */
 function drupal_projects_install() {
 	// create the content type
 	node_types_rebuild();
@@ -106,9 +109,6 @@ function drupal_projects_install() {
 	_create_drupal_projects_shortcut_set();
 }
 
-/**
- * Implements hook_install().
- */
 function _create_drupal_projects_shortcut_set() {
 	$t = get_t();
 	// Create our shortcut set.
@@ -246,6 +246,8 @@ function _drupal_projects_installed_instances() {
 }
 
 function drupal_projects_uninstall() {
+	module_load_include('inc', 'pathauto', 'pathauto');
+	
 	// gather all the content while the module was enabled
 	$sql = 'SELECT nid FROM {node} n WHERE n.type = :type';
 	$result = db_query($sql, array(':type' => 'drupal_projects'));
@@ -303,6 +305,15 @@ function drupal_projects_enable() {
 	foreach ($styles as $style) {
 		image_style_flush($style);
 	}
+
+	// lets run after shortcut module
+	// so we can turn the shortcut menu
+	// into our projects menu 
+	db_update('system')
+	->fields(array('weight' => 1))
+	->condition('type', 'module')
+	->condition('name', 'drupal_projects')
+	->execute();
 }
 
 /**
