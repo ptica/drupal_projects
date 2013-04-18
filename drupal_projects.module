@@ -114,8 +114,11 @@ function drupal_projects_node_presave($node) {
 			taxonomy_term_save($newterm);
 		}
 		
-		// attach
+		// attach to taxonomy
 		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
+		
+		// workbench access 
+		_workbench_access_allow_user_access_to_project($newterm->tid);
 		
 		// add it to the shortcut set
 		$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name')); 
@@ -333,7 +336,9 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 			break;
 	}
 }
-
+/**
+ * Adding new project link into shortcut menu
+ */
 function drupal_projects_page_alter(&$page) {
   if (isset($page['page_top']['toolbar'])) {
     // If the toolbar is available, add a pre-render function to modify the
@@ -346,4 +351,19 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ New project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
 	return $toolbar;
+}
+/**
+ * Tie into workbench access
+ */
+function _workbench_access_allow_user_access_to_project($tid) {
+	$user = $GLOBALS['user'];
+    $sections = $user->workbench_access;
+    if (!empty($user->workbench_access_by_role)) {
+      foreach ($user->workbench_access_by_role as $key) {
+        unset($sections[$key]);
+      }
+    }
+    if (!empty($user->status) && !in_array($tid, array_keys($sections))) {
+      workbench_access_user_section_save($user->uid, $tid, variable_get('workbench_access'));
+    }
 }
