@@ -130,6 +130,7 @@ function drupal_projects_node_presave($node) {
 				'menu_name' => $shortcut_set->set_name,
 				'plid' => 0,
 				'options' => array('query' => array('tid'=>$newterm->tid)),
+				'module'  => 'drupal_projects'
 			);
 			menu_link_save($shortcut_link);
 		}
