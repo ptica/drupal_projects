@@ -65,7 +65,7 @@ function drupal_projects_node_insert($node) {
 		);
 		if (!menu_load($menu['menu_name'])) {
 			menu_save($menu);
-			
+			// we gather project menus into some var, but why???
 			$allowed_menus = variable_get('menu_options_drupal_projects_page');
 			$allowed_menus[]  = $menu['menu_name'];
 			variable_set('menu_options_drupal_projects_page', $allowed_menus);
@@ -156,6 +156,16 @@ function drupal_projects_node_delete($node) {
 				taxonomy_term_delete($term->tid);
 			}
 		}
+		// delete shortcut links to project view
+		//$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
+		$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
+		foreach ($result as $m) {
+			$options = unserialize($m['options']);
+			$tid = @$options['query']['tid'];
+			if ($tid == $term->tid) {
+				menu_link_delete($m['mlid']);
+			}
+		}
 	
 		// delete menu for the project minisite
 		$menu = array(
@@ -165,22 +175,6 @@ function drupal_projects_node_delete($node) {
 		);
 		if (menu_load($menu['menu_name'])) {
 			menu_delete($menu);
-		}
-		
-		// Delete all menu module links that point to this node.
-		/* $set = db_select('menu_links', ss)
-		->fields('ss')
-		->condition('module', 'drupal_projects')
-		->execute()
-		->fetchObject();
-		 */
-		$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
-		foreach ($result as $m) {
-			$options = unserialize($m['options']);
-			$tid = $options['query']['tid'];
-			if ($tid == $node->nid) {
-				menu_link_delete($m['mlid']);
-			}
 		}
 	}
 }
@@ -271,7 +265,7 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
 }
 
 /**
- * preselect the 
+ * preselect the  && custom redirect after delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'drupal_projects_page_node_form') {
@@ -280,9 +274,20 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 			$form["drupal_projects_project"]["und"]['#default_value'] = $preselected_project_tid;
 		}
 	}
+	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'drupal_projects') {
+		$form['#submit'][] = '_custom_redirect_after_delete';
+	}
 }
+function _custom_redirect_after_delete($form, &$form_state) {
+	// GET destination has precedence over $form_state['redirect']
+	$_GET['destination'] = 'admin/content?type=drupal_projects';
+	drupal_static_reset('drupal_get_destination');
+	$form_state['redirect'] = 'admin/content';
+}
+/**
+ * collapse the bulk op form
+ */
 function drupal_projects_views_bulk_operations_form_alter(&$form, &$form_state, $vbo) {
-	// collapse the 
 	if ($form['#form_id'] =='views_form_admin_views_node_system_1') {
 		$form['select']['#collapsed'] = TRUE;
 		$form['select']['#weight'] = 100;
@@ -367,4 +372,29 @@ function _workbench_access_allow_user_access_to_project($tid) {
     if (!empty($user->status) && !in_array($tid, array_keys($sections))) {
       workbench_access_user_section_save($user->uid, $tid, variable_get('workbench_access'));
     }
+}
+/**
+ * Hiding project links I have no access to
+ */
+function drupal_projects_menu_link_alter(&$link) {
+	// please call hook_translated_menu_link_alter on my links
+	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
+		$link['options']['alter'] = TRUE;
+	}
+}
+
+function drupal_projects_translated_menu_link_alter(&$link) {
+	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
+		$project_tid  = @$link['options']['query']['tid'];
+		$account = $GLOBALS['user'];
+		// duplicating workbench access call, better find to call something more high level
+		// Now check the user account.
+		if (!isset($account->workbench_access)) {
+			$account = user_load($account->uid);
+		}
+		if (empty($account->workbench_access)) {
+		} else if (!workbench_access_check('update', 'drupal_projects', array($project_tid), $account->workbench_access)) {
+			$link['hidden'] = 1;
+		}
+	}
 }
