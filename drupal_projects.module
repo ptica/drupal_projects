@@ -52,13 +52,12 @@ function drupal_projects_init() {
  * $node already has $node->nid
  */
 function drupal_projects_node_insert($node) {
-	module_load_include('inc', 'pathauto', 'pathauto');
 	$t = get_t();
 	
 	if ($node->type == 'drupal_projects') {
 		// create a new menu for the project minisite
 		$menu = array(
-			'menu_name' => 'menu-' . pathauto_cleanstring($t($node->title)),
+			'menu_name' => _project_slug($t($node->title)),
 			'title'     => $t($node->title),
 			'module'    => 'drupal_projects',
 			'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
@@ -76,7 +75,7 @@ function drupal_projects_node_insert($node) {
 		// add it to the menu
 		$project_ref = $node->drupal_projects_project;
 		$term = taxonomy_term_load($project_ref[$node->language][0]['tid']);
-		$menu_name = 'menu-' . pathauto_cleanstring(@$term->name);
+		$menu_name = _project_slug(@$term->name);
 		if (menu_load($menu_name)) {
 			$item = array(
 				'link_path'  => drupal_get_normal_path('node/'.$node->nid),
@@ -117,7 +116,7 @@ function drupal_projects_node_presave($node) {
 		// attach to taxonomy
 		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
 		
-		// workbench access 
+		// workbench access
 		_workbench_access_allow_user_access_to_project($newterm->tid);
 		
 		// add it to the shortcut set
@@ -141,7 +140,6 @@ function drupal_projects_node_presave($node) {
  * Implements hook_node_delete().
  */
 function drupal_projects_node_delete($node) {
-	module_load_include('inc', 'pathauto', 'pathauto');
 	$t = get_t();
 	
 	if ($node->type == 'drupal_projects') {
@@ -169,7 +167,7 @@ function drupal_projects_node_delete($node) {
 	
 		// delete menu for the project minisite
 		$menu = array(
-				'menu_name' => 'menu-' . pathauto_cleanstring($t($node->title)),
+				'menu_name' => _project_slug($t($node->title)),
 				'title'     => $t($node->title),
 				'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
 		);
@@ -363,13 +361,13 @@ function drupal_projects_toolbar_pre_render($toolbar) {
  */
 function _workbench_access_allow_user_access_to_project($tid) {
 	$user = $GLOBALS['user'];
-    $sections = $user->workbench_access;
+	$sections = @$user->workbench_access;
     if (!empty($user->workbench_access_by_role)) {
       foreach ($user->workbench_access_by_role as $key) {
         unset($sections[$key]);
       }
     }
-    if (!empty($user->status) && !in_array($tid, array_keys($sections))) {
+    if (!empty($user->status) && !in_array($tid, array_keys((array)$sections))) {
       workbench_access_user_section_save($user->uid, $tid, variable_get('workbench_access'));
     }
 }
@@ -397,4 +395,13 @@ function drupal_projects_translated_menu_link_alter(&$link) {
 			$link['hidden'] = 1;
 		}
 	}
+}
+
+function _project_slug($title) {
+	$t = get_t();
+	module_load_include('inc', 'pathauto', 'pathauto');
+	$slug = pathauto_cleanstring($t($title));
+	if (strlen($slug) > 32) // 
+		$slug = substr($slug, 0, 31);
+	return $slug;
 }

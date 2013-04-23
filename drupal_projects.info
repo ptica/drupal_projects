@@ -1,8 +1,11 @@
-name = Projects Content Type
-description = A simple demonstration content type
+name = Drupal Projects
+description = subsites living sections after the slash in the url
 package = Drupal Projects
 dependencies[] = image
 dependencies[] = taxonomy
+dependencies[] = workbench_access
+dependencies[] = shortcut
+dependencies[] = overlay
 core = 7.x
 files[] = drupal_projects.install
 files[] = drupal_projects.module
