@@ -360,16 +360,20 @@ function drupal_projects_toolbar_pre_render($toolbar) {
  * Tie into workbench access
  */
 function _workbench_access_allow_user_access_to_project($tid) {
-	$user = $GLOBALS['user'];
-	$sections = @$user->workbench_access;
-    if (!empty($user->workbench_access_by_role)) {
-      foreach ($user->workbench_access_by_role as $key) {
-        unset($sections[$key]);
-      }
-    }
-    if (!empty($user->status) && !in_array($tid, array_keys((array)$sections))) {
-      workbench_access_user_section_save($user->uid, $tid, variable_get('workbench_access'));
-    }
+	$account = $GLOBALS['user'];
+	// Now check the user account.
+	if (!isset($account->workbench_access)) {
+	  $account = user_load($account->uid);
+	}
+	$sections = @$account->workbench_access;
+	if (!empty($account->workbench_access_by_role)) {
+		foreach ($account->workbench_access_by_role as $key) {
+			unset($sections[$key]);
+		}
+	}
+	if (!empty($account->status) && !in_array($tid, array_keys((array)$sections))) {
+		workbench_access_user_section_save($account->uid, $tid, variable_get('workbench_access'));
+	}
 }
 /**
  * Hiding project links I have no access to
