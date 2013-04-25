@@ -69,6 +69,30 @@ function drupal_projects_node_insert($node) {
 			$allowed_menus[]  = $menu['menu_name'];
 			variable_set('menu_options_drupal_projects_page', $allowed_menus);
 		}
+		
+		// find coresponding term
+		$project_ref = $node->drupal_projects_project;
+		$project_term = array_shift($project_ref[$node->language]);
+		$term = taxonomy_term_load($project_term['tid']);
+		
+		// workbench access
+		_workbench_access_allow_user_access_to_project($term->tid);
+		
+		// add it to the shortcut set
+		$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
+		if ($shortcut_set && $term->tid) {
+			$shortcut_link = array(
+				'link_path' => 'admin/content',
+				'link_title' => $t($node->title),
+				'weight' => -20,
+				'menu_name' => $shortcut_set->set_name,
+				'plid' => 0,
+				'options' => array('query' => array('tid'=>$term->tid)),
+				'module'  => 'drupal_projects'
+			);
+			menu_link_save($shortcut_link);
+			menu_cache_clear_all();
+		}
 	}
 	
 	if ($node->type == 'drupal_projects_page') {
@@ -115,24 +139,6 @@ function drupal_projects_node_presave($node) {
 		
 		// attach to taxonomy
 		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
-		
-		// workbench access
-		_workbench_access_allow_user_access_to_project($newterm->tid);
-		
-		// add it to the shortcut set
-		$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name')); 
-		if ($shortcut_set && $newterm->tid) {
-			$shortcut_link = array(
-				'link_path' => 'admin/content',
-				'link_title' => $t($node->title),
-				'weight' => -20,
-				'menu_name' => $shortcut_set->set_name,
-				'plid' => 0,
-				'options' => array('query' => array('tid'=>$newterm->tid)),
-				'module'  => 'drupal_projects'
-			);
-			menu_link_save($shortcut_link);
-		}
 	}
 }
 
