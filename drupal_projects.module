@@ -412,12 +412,12 @@ function _project_to_term_tid($node) {
 	if (!empty($node)) {
 		//$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
 		//return $tid;
-		$project_ref  = $node->drupal_projects_project;
-		$project_term = array_shift($project_ref[$node->language]);
-		return $project_term['tid'];
-	} else {
-		return false;
+		if ($project_ref  = $node->drupal_projects_project) {
+			$project_term = array_shift($project_ref[$node->language]);
+			return $project_term['tid'];
+		}
 	}
+	return false;
 }
 function _project_to_term($node) {
 	$tid  = _project_to_term_tid($node);
