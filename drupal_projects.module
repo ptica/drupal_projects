@@ -56,12 +56,7 @@ function drupal_projects_node_insert($node) {
 	
 	if ($node->type == 'drupal_projects') {
 		// create a new menu for the project minisite
-		$menu = array(
-			'menu_name' => _project_slug($t($node->title)),
-			'title'     => $t($node->title),
-			'module'    => 'drupal_projects',
-			'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
-		);
+		$menu = _project_to_menu_array($node);
 		if (!menu_load($menu['menu_name'])) {
 			menu_save($menu);
 			// we gather project menus into some var, but why???
@@ -450,15 +445,20 @@ function _term_to_project($term) {
 	
 }
 function _project_to_menu($node) {
-	$t = get_t(); 
-	$menu = array(
-		'menu_name' => _project_slug($t($node->title)),
-		'title'     => $t($node->title),
-		'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
-	);
+	$menu = _project_to_menu_array($node);
 	if (menu_load($menu['menu_name'])) {
 		return $menu;
 	} else {
 		return false;
 	}
+}
+function _project_to_menu_array($node) {
+	$t = get_t();
+	$menu_array = array(
+		'menu_name' => _project_slug($t($node->title)),
+		'title'     => $t($node->title),
+		'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		'module'    => 'drupal_projects',
+	);
+	return $menu_array;
 }
