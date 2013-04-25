@@ -71,9 +71,7 @@ function drupal_projects_node_insert($node) {
 		}
 		
 		// find coresponding term
-		$project_ref = $node->drupal_projects_project;
-		$project_term = array_shift($project_ref[$node->language]);
-		$term = taxonomy_term_load($project_term['tid']);
+		$term = _project_to_term($node);
 		
 		// workbench access
 		_workbench_access_allow_user_access_to_project($term->tid);
@@ -97,8 +95,7 @@ function drupal_projects_node_insert($node) {
 	
 	if ($node->type == 'drupal_projects_page') {
 		// add it to the menu
-		$project_ref = $node->drupal_projects_project;
-		$term = taxonomy_term_load($project_ref[$node->language][0]['tid']);
+		$term = _project_to_term($node);
 		$menu_name = _project_slug(@$term->name);
 		if (menu_load($menu_name)) {
 			$item = array(
@@ -172,12 +169,8 @@ function drupal_projects_node_delete($node) {
 		}
 	
 		// delete menu for the project minisite
-		$menu = array(
-				'menu_name' => _project_slug($t($node->title)),
-				'title'     => $t($node->title),
-				'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
-		);
-		if (menu_load($menu['menu_name'])) {
+		$menu = _project_to_menu($node);
+		if ($menu) {
 			menu_delete($menu);
 		}
 	}
@@ -421,8 +414,15 @@ function _project_slug($title) {
 }
 
 function _project_to_term_tid($node) {
-	$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
-	return $tid;
+	if (!empty($node)) {
+		//$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
+		//return $tid;
+		$project_ref  = $node->drupal_projects_project;
+		$project_term = array_shift($project_ref[$node->language]);
+		return $project_term['tid'];
+	} else {
+		return false;
+	}
 }
 function _project_to_term($node) {
 	$tid  = _project_to_term_tid($node);
@@ -448,4 +448,17 @@ function _term_to_project($term) {
 	// to the project home page!
 	//$term_url = '';
 	
+}
+function _project_to_menu($node) {
+	$t = get_t(); 
+	$menu = array(
+		'menu_name' => _project_slug($t($node->title)),
+		'title'     => $t($node->title),
+		'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+	);
+	if (menu_load($menu['menu_name'])) {
+		return $menu;
+	} else {
+		return false;
+	}
 }
