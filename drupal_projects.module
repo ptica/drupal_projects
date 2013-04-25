@@ -191,8 +191,7 @@ function drupal_projects_custom_theme() {
 	
 	// find out if the current page is part of projects hierarchy
 	$node = node_load(arg(1));
-	$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
-	$term = taxonomy_term_load($tid);
+	$term = _project_to_term($node);
 	
 	if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
 		// we got a project page
@@ -335,10 +334,15 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				$item['href'] .= '/'.$_GET['tid'];
 				$item['title'] = t('Add page to project');
 				
+				// remove original 'add content' link
+				if ($data['actions']['output'][0]['#link']['path'] == 'node/add') {
+					unset($data['actions']['output'][0]);
+				}
+				
 				if ($item['access']) {
 					$data['actions']['output'][] = array(
-							'#theme' => 'menu_local_action',
-							'#link' => $item,
+						'#theme' => 'menu_local_action',
+						'#link' => $item,
 					);
 				}
 			}
@@ -414,4 +418,34 @@ function _project_slug($title) {
 	if (strlen($slug) > 32) // 
 		$slug = substr($slug, 0, 31);
 	return $slug;
+}
+
+function _project_to_term_tid($node) {
+	$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
+	return $tid;
+}
+function _project_to_term($node) {
+	$tid  = _project_to_term_tid($node);
+	$term = taxonomy_term_load($tid);
+	return $term;
+}
+function _term_to_project($term) {
+	// get all projects filled under this term
+	$nodes = node_load_multiple(taxonomy_select_nodes($term->tid));
+	// TODO BEWARE do not load all of them, filter them somehow!
+	foreach ($nodes as $project) {
+		if ($project->type == 'drupal_projects_project') {
+			break;
+		}
+	}
+	return $project;
+	//$nodes = taxonomy_select_nodes($term->tid);
+	//$node = node_load($nodes[0]);
+	//$term_url = drupal_lookup_path('alias', 'node/'.$node->nid);
+	
+	
+	// override the destination url
+	// to the project home page!
+	//$term_url = '';
+	
 }
