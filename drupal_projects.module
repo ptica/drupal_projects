@@ -242,13 +242,13 @@ function drupal_projects_shortcut_default_set($account) {
 // TODO set uri of taxonomy terms
 // http://dropbucket.org/node/92
 
+/**
+ * alter the Content View Filter form
+ */
 function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
-	// only alter the jobs search exposed filter form
 	if ($vars['form']['#id'] == 'views-exposed-form-admin-views-node-system-1') {
-
 		// Change the text on the submit button
 		$vars['form']['submit']['#value'] = t('Search');
-
 		// Rebuild the rendered version (submit button, rest remains unchanged)
 		unset($vars['form']['submit']['#printed']);
 		$vars['button'] = drupal_render($vars['form']['submit']);
@@ -256,7 +256,7 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
 }
 
 /**
- * preselect the  && custom redirect after delete
+ * preselect the  && custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'drupal_projects_page_node_form') {
@@ -281,7 +281,7 @@ function _custom_redirect_after_delete($form, &$form_state) {
 	$form_state['redirect'] = 'admin/content';
 }
 /**
- * collapse the bulk op form
+ * collapse the 'Bulk Operations' form
  */
 function drupal_projects_views_bulk_operations_form_alter(&$form, &$form_state, $vbo) {
 	if ($form['#form_id'] =='views_form_admin_views_node_system_1') {
@@ -318,12 +318,15 @@ function drupal_projects_preprocess_views_view(&$vars) {
 	}
 }
 
+/**
+ * 
+ */
 function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path) {
 	switch ($root_path){
 		case 'admin/content':
-			$item = menu_get_item('node/add/drupal-projects-page');
-			// customize the link
 			if (isset($_GET['tid'])) {
+				// new link 'Add page to project'
+				$item = menu_get_item('node/add/drupal-projects-page');
 				$item['href'] .= '/'.$_GET['tid'];
 				$item['title'] = t('Add page to project');
 				
@@ -331,7 +334,7 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				if ($data['actions']['output'][0]['#link']['path'] == 'node/add') {
 					unset($data['actions']['output'][0]);
 				}
-				
+				// add if access allowed
 				if ($item['access']) {
 					$data['actions']['output'][] = array(
 						'#theme' => 'menu_local_action',
@@ -344,7 +347,7 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 	}
 }
 /**
- * Adding new project link into shortcut menu
+ * Adding '+ New project' link into shortcut menu
  */
 function drupal_projects_page_alter(&$page) {
   if (isset($page['page_top']['toolbar'])) {
@@ -366,7 +369,7 @@ function _workbench_access_allow_user_access_to_project($tid) {
 	$account = $GLOBALS['user'];
 	// Now check the user account.
 	if (!isset($account->workbench_access)) {
-	  $account = user_load($account->uid);
+		$account = user_load($account->uid);
 	}
 	$sections = @$account->workbench_access;
 	if (!empty($account->workbench_access_by_role)) {
@@ -392,7 +395,7 @@ function drupal_projects_translated_menu_link_alter(&$link) {
 	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
 		$project_tid  = @$link['options']['query']['tid'];
 		$account = $GLOBALS['user'];
-		// duplicating workbench access call, better find to call something more high level
+		// TODO duplicating workbench access call, better find to call something more high level
 		// Now check the user account.
 		if (!isset($account->workbench_access)) {
 			$account = user_load($account->uid);
@@ -403,7 +406,10 @@ function drupal_projects_translated_menu_link_alter(&$link) {
 		}
 	}
 }
-
+/**
+ * Utility functions
+ * TODO namespace them? move to separate file?
+ */
 function _project_slug($title) {
 	$t = get_t();
 	module_load_include('inc', 'pathauto', 'pathauto');
