@@ -10,7 +10,7 @@ function drupal_projects_node_info() {
 			'has_title' => '1',
 			'title_label' => t('Project name'),
 			'body_label' => t('Homepage content'),
-			'help' => t('Please fill in all fields.'),
+			//'help' => t('Please fill in all fields.'),
 			'locked' => true,
 	);
 	
@@ -22,7 +22,7 @@ function drupal_projects_node_info() {
 			'has_title' => '1',
 			'title_label' => t('Page title'),
 			'body_label' => t('Page content'),
-			'help' => t('Please fill in all fields.'),
+			//'help' => t('Please fill in all fields.'),
 			'locked' => true,
 	);
 
@@ -98,6 +98,7 @@ function drupal_projects_node_insert($node) {
 				'link_title' => $node->title,
 				'menu_name'  => $menu_name,
 				'module'     => 'drupal_projects',
+				'expanded'   => 1,
 			);
 			menu_link_save($item);
 			menu_cache_clear_all();
