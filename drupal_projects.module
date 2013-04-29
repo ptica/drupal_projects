@@ -90,9 +90,13 @@ function drupal_projects_node_insert($node) {
 	
 	if ($node->type == 'drupal_projects_page') {
 		// add it to the menu
+		// commented out, as we use the std menu vertical tab by default
+		/*
 		$term = _project_to_term($node);
 		$menu_name = _project_slug(@$term->name);
-		if (menu_load($menu_name)) {
+		$menu_tree =  menu_tree_all_data($menu_name);
+		flog_it($menu_tree, 'menu_tree', 'menu');
+		if ($menu = menu_load($menu_name)) {
 			$item = array(
 				'link_path'  => drupal_get_normal_path('node/'.$node->nid),
 				'link_title' => $node->title,
@@ -102,7 +106,7 @@ function drupal_projects_node_insert($node) {
 			);
 			menu_link_save($item);
 			menu_cache_clear_all();
-		}
+		} */
 	}
 }
 
@@ -275,6 +279,9 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 					unset($form['menu']['link']['parent']['#options'][$key]);
 				}
 			}
+			
+			// enable menu creation by default
+			$form['menu']['enabled']['#default_value'] = 1;
 		}
 	}
 	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'drupal_projects') {
