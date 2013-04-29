@@ -410,6 +410,12 @@ function drupal_projects_translated_menu_link_alter(&$link) {
  * Utility functions
  * TODO namespace them? move to separate file?
  */
+
+function _node_to_project($node) {
+	$term    = _project_to_term($node);
+	$project = _term_to_project($term);
+	return $project; 
+}
 function _project_slug($title) {
 	$t = get_t();
 	module_load_include('inc', 'pathauto', 'pathauto');
@@ -472,4 +478,11 @@ function _project_to_menu_array($node) {
 		'module'    => 'drupal_projects',
 	);
 	return $menu_array;
+}
+function _project_get_project_logo_uri($project) {
+	if (!@$project->drupal_projects_image[$project->language][0]['uri']) {
+		// default logo images are not populated for just referenced nodes (ie. not for main content)
+		node_build_content($project);
+	}
+	return $project->drupal_projects_image[$project->language][0]['uri'];
 }
