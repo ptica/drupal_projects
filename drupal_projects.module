@@ -428,13 +428,11 @@ function drupal_projects_translated_menu_link_alter(&$link) {
 	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
 		$project_tid  = @$link['options']['query']['tid'];
 		$account = $GLOBALS['user'];
+		$term    = taxonomy_term_load($project_tid);
+		$project = _term_to_project($term);
 		// TODO duplicating workbench access call, better find to call something more high level
 		// Now check the user account.
-		if (!isset($account->workbench_access)) {
-			$account = user_load($account->uid);
-		}
-		if (empty($account->workbench_access)) {
-		} else if (!workbench_access_check('update', 'drupal_projects', array($project_tid), $account->workbench_access)) {
+		if (!node_access('update', $project, $account)) {
 			$link['hidden'] = 1;
 		}
 	}
