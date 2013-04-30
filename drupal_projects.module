@@ -267,9 +267,10 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'drupal_projects_page_node_form') {
 		// Subpage
 		if (is_numeric(arg(3))) {
+			$lang = $form['language']['#value'];
 			// preselected project
 			$preselected_project_tid = arg(3);
-			$form['drupal_projects_project']['und']['#default_value'] = $preselected_project_tid;
+			$form['drupal_projects_project'][$lang]['#default_value'] = $preselected_project_tid;
 			
 			// display only parent pages that belong to current project
 			$term = taxonomy_term_load($preselected_project_tid);
@@ -282,6 +283,15 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 			
 			// enable menu creation by default
 			$form['menu']['enabled']['#default_value'] = 1;
+			
+			dpm($form);
+			// hide
+			$form['drupal_projects_project'][$lang]['#disabled'] = true;
+			$form['drupal_projects_project'][$lang]['#type']     = 'value';
+			$form['menu']['link']['weight']['#disabled']         = true;
+			$form['menu']['link']['weight']['#type']             = 'value';
+			$form['menu']['link']['description']['#disabled']    = true;
+			$form['menu']['link']['description']['#type']        = 'value';
 		}
 	}
 	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'drupal_projects') {
