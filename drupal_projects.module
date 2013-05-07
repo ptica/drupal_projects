@@ -109,6 +109,9 @@ function drupal_projects_node_insert($node) {
 		} */
 	}
 }
+function drupal_projects_node_update($node) {
+	
+}
 
 /**
  * vocabulary term added on hook_node_presave()
@@ -183,6 +186,7 @@ function drupal_projects_custom_theme() {
 	// default theme for admin area
 	if ((arg(0) == 'node' && arg(1) == 'add')
 			||  (arg(0) == 'node' && arg(2) == 'edit')
+			||  (arg(0) == 'node' && arg(2) == 'delete')
 			||  (arg(0) == 'user' && arg(2) == 'edit')
 	) {
 		return;
