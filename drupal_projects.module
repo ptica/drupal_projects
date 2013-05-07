@@ -76,7 +76,7 @@ function drupal_projects_node_insert($node) {
 		if ($shortcut_set && $term->tid) {
 			$shortcut_link = array(
 				'link_path' => 'admin/content',
-				'link_title' => $t($node->title),
+				'link_title' => $t(_project_to_acronym($node)),
 				'weight' => -20,
 				'menu_name' => $shortcut_set->set_name,
 				'plid' => 0,
@@ -515,9 +515,15 @@ function _project_to_menu_array($node) {
 	return $menu_array;
 }
 function _project_get_project_logo_uri($project) {
-	if (!@$project->drupal_projects_image[$project->language][0]['uri']) {
+	if (!isset($project->drupal_projects_image[$project->language][0]['uri'])) {
 		// default logo images are not populated for just referenced nodes (ie. not for main content)
 		node_build_content($project);
 	}
 	return $project->drupal_projects_image[$project->language][0]['uri'];
+}
+function _project_to_acronym($project) {
+	if (isset($project->field_acronym[$project->language][0]['value'])) {
+		return $project->field_acronym[$project->language][0]['value'];
+	}
+	return $project->title;
 }
