@@ -91,6 +91,7 @@ function drupal_projects_node_insert($node) {
 	if ($node->type == 'drupal_projects_page') {
 		// add it to the menu
 		// commented out, as we use the std menu vertical tab by default
+		// expanded is carried out in presave hook below
 		/*
 		$term = _project_to_term($node);
 		$menu_name = _project_slug(@$term->name);
@@ -107,6 +108,7 @@ function drupal_projects_node_insert($node) {
 			menu_link_save($item);
 			menu_cache_clear_all();
 		} */
+		
 	}
 }
 function drupal_projects_node_update($node) {
@@ -121,6 +123,12 @@ function drupal_projects_node_presave($node) {
 	$t = get_t();
 	
 	if ($node->type == 'drupal_projects') {
+		if ($acronym = _project_to_acronym($node)) {
+			// derive path from acronym field
+			$node->path['alias'] = _project_slug($acronym);
+			$node->path['pathauto'] = 0;
+		}
+		
 		// find appropriate vocabulary:
 		$vocabulary_id = variable_get('drupal_projects_vocabulary_id');
 		$vocabulary = taxonomy_vocabulary_load($vocabulary_id);
@@ -139,6 +147,10 @@ function drupal_projects_node_presave($node) {
 		
 		// attach to taxonomy
 		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
+	}
+	if ($node->type == 'drupal_projects_page') {
+		// menu has to be expanded
+		$node->menu['expanded'] = 1;
 	}
 }
 
@@ -285,7 +297,7 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 			// display only parent pages that belong to current project
 			$term = taxonomy_term_load($preselected_project_tid);
 			foreach ($form['menu']['link']['parent']['#options'] as $key => $option) {
-				$pattern = '^' . $term->name;
+				$pattern = '^' . _term_slug($term->name);
 				if (!preg_match("/$pattern/", $key)) {
 					unset($form['menu']['link']['parent']['#options'][$key]);
 				}
@@ -456,6 +468,14 @@ function _project_slug($title) {
 	module_load_include('inc', 'pathauto', 'pathauto');
 	$slug = pathauto_cleanstring($t($title));
 	if (strlen($slug) > 32) // 
+		$slug = substr($slug, 0, 31);
+	return $slug;
+}
+function _term_slug($title) {
+	$t = get_t();
+	module_load_include('inc', 'pathauto', 'pathauto');
+	$slug = pathauto_cleanstring($t($title));
+	if (strlen($slug) > 32) //
 		$slug = substr($slug, 0, 31);
 	return $slug;
 }
