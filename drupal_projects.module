@@ -151,6 +151,12 @@ function drupal_projects_node_presave($node) {
 	if ($node->type == 'drupal_projects_page') {
 		// menu has to be expanded
 		$node->menu['expanded'] = 1;
+		
+		// derive path in form [project]/[page]
+		// should go through: drupal_projects_project -> project slug
+		// but taking a shortcut through menu_name
+		$node->path['alias'] = $node->menu['menu_name'] . '/' . _project_slug($node->title);
+		$node->path['pathauto'] = 0;
 	}
 }
 
