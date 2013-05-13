@@ -174,9 +174,8 @@ function drupal_projects_node_delete($node) {
 		// delete a taxonomy term
 		$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
 		if (count($terms) == 1) {
-			foreach ($terms as $term) {
-				taxonomy_term_delete($term->tid);
-			}
+			$term = current($terms);
+			taxonomy_term_delete($term->tid);
 		}
 		// delete shortcut links to project view
 		//$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
@@ -192,6 +191,19 @@ function drupal_projects_node_delete($node) {
 		// delete menu for the project minisite
 		$menu = _project_to_menu($node);
 		if ($menu) {
+			// delete all project subpages
+			$query = new EntityFieldQuery();
+			$query->entityCondition('entity_type', 'node')
+					->entityCondition('bundle', 'drupal_projects_page')                    
+					->fieldCondition('drupal_projects_project', 'tid', $term->tid, '=');
+			$result = $query->execute();
+
+			if (!empty($result['node'])) {
+				$nids = array_keys($result['node']);
+				node_delete_multiple($nids);
+			}
+			
+			// last shot
 			menu_delete($menu);
 		}
 	}
