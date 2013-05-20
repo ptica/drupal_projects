@@ -42,6 +42,21 @@ function drupal_projects_init() {
 	$path = drupal_get_path('module', 'drupal_projects');
 	drupal_add_js($path . '/js/drupal_projects.js');
 	//drupal_add_css($path . '/mymodule.css');
+	
+	/**
+	 * Trying to force project urls ending in trailing slash
+	 * so we can reuse existing relative links
+	 */
+	$node = menu_get_object();
+	if (!empty($node) && $node->type == 'drupal_projects') {
+		$acronym = _project_to_acronym($node);
+		$slug = _project_slug($acronym);
+		$path = $slug . '/';
+		// try to avoid redirect loop
+		if (strpos($_SERVER['REQUEST_URI'], $path) === false) {
+			return drupal_goto($path, $options = array(), $http_response_code = 301);
+		}
+	}
 }
 
 /**
@@ -566,3 +581,4 @@ function _project_to_acronym($project) {
 	}
 	return $project->title;
 }
+
