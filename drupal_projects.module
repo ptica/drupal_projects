@@ -44,17 +44,20 @@ function drupal_projects_init() {
 	//drupal_add_css($path . '/mymodule.css');
 	
 	/**
-	 * Trying to force project urls ending in trailing slash
+	 * force public project urls ending in trailing slash
 	 * so we can reuse existing relative links
 	 */
-	$node = menu_get_object();
-	if (!empty($node) && $node->type == 'drupal_projects') {
-		$acronym = _project_to_acronym($node);
-		$slug = _project_slug($acronym);
-		$path = $slug . '/';
-		// try to avoid redirect loop
-		if (strpos($_SERVER['REQUEST_URI'], $path) === false) {
-			return drupal_goto($path, $options = array(), $http_response_code = 301);
+	if (!path_is_admin(current_path())) {
+		$node = menu_get_object();
+		
+		if (!empty($node) && $node->type == 'drupal_projects') {
+			$acronym = _project_to_acronym($node);
+			$slug = _project_slug($acronym);
+			$path = $slug . '/';
+			// try to avoid redirect loop
+			if (strpos($_SERVER['REQUEST_URI'], $path) === false) {
+				return drupal_goto($path, $options = array(), $http_response_code = 301);
+			}
 		}
 	}
 }
@@ -230,14 +233,8 @@ function drupal_projects_node_delete($node) {
  */
 function drupal_projects_custom_theme() {
 	// default theme for admin area
-	if ((arg(0) == 'node' && arg(1) == 'add')
-			||  (arg(0) == 'node' && arg(2) == 'edit')
-			||  (arg(0) == 'node' && arg(2) == 'delete')
-			||  (arg(0) == 'user' && arg(2) == 'edit')
-	) {
-		return;
-	}
-	
+	if (path_is_admin(current_path())) { return; }
+
 	// find out if the current page is part of projects hierarchy
 	$node = node_load(arg(1));
 	$term = _project_to_term($node);
