@@ -180,9 +180,18 @@ function drupal_projects_node_presave($node) {
 		
 		// BEWARE!
 		// if acronym has changed, so did project URI
-		// we have to update all subpages and their menu items
-		// have no idea how to do it programatically ;(
-		// manually resaving the page works
+		// we have to update all subpage menu items
+		if (isset($node->original)) {
+			$old_slug = _project_slug(_project_to_acronym($node->original));
+			$new_slug = _project_slug(_project_to_acronym($node));
+			$result = _project_get_url_aliases($node->original);
+			foreach ($result as $path) {
+				$pattern = '^' . $old_slug . '\/';
+				$path['alias'] = preg_replace("/$pattern/", $new_slug . '/', $path['alias']);
+				path_save($path);
+			}
+		}
+		
 		
 		// shortcut bar update
 		if (isset($node->original)) {
@@ -627,4 +636,8 @@ function _project_get_shortcut_links() {
 	$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
 	return $result;
 }
-
+function _project_get_url_aliases($project) {
+	$project_slug = _project_slug(_project_to_acronym($project));
+	$result = db_query("SELECT * FROM {url_alias} WHERE alias LIKE :alias", array(':alias'=>"$project_slug/%"), array('fetch' => PDO::FETCH_ASSOC));
+	return $result;
+}
