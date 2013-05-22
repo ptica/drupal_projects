@@ -472,6 +472,18 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 						'#link' => $item,
 					);
 				}
+				
+				// new link 'Alter project menu'
+				$term = taxonomy_term_load($_GET['tid']);
+				$project = _term_to_project($term);
+				$item = menu_get_item('admin/structure/menu/manage/' . _project_to_menu_name($project));
+				$item['title'] = t('Alter project menu');
+				if (@$item['access']) {
+					$data['actions']['output'][] = array(
+							'#theme' => 'menu_local_action',
+							'#link' => $item,
+					);
+				}
 			}
 			
 			break;
