@@ -114,7 +114,6 @@ function drupal_projects_node_insert($node) {
 		$term = _project_to_term($node);
 		$menu_name = _project_slug(@$term->name);
 		$menu_tree =  menu_tree_all_data($menu_name);
-		flog_it($menu_tree, 'menu_tree', 'menu');
 		if ($menu = menu_load($menu_name)) {
 			$item = array(
 				'link_path'  => drupal_get_normal_path('node/'.$node->nid),
@@ -129,51 +128,88 @@ function drupal_projects_node_insert($node) {
 		
 	}
 }
-function drupal_projects_node_update($node) {
-	
-}
 
 /**
- * vocabulary term added on hook_node_presave()
+ * Act on a node being inserted or updated.
+ * - vocabulary term added
  */
 
 function drupal_projects_node_presave($node) {
 	$t = get_t();
 	
 	if ($node->type == 'drupal_projects') {
-		if ($acronym = _project_to_acronym($node)) {
-			// derive path from acronym field
-			$node->path['alias'] = _project_slug($acronym);
-			$node->path['pathauto'] = 0;
-		}
+		// derive path from acronym field
+		$acronym = _project_to_acronym($node);
+		$node->path['alias'] = _project_slug($acronym);
+		$node->path['pathauto'] = 0;
 		
-		// find appropriate vocabulary:
+		// taxonomy classification
 		$vocabulary_id = variable_get('drupal_projects_vocabulary_id');
 		$vocabulary = taxonomy_vocabulary_load($vocabulary_id);
 		
-		$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
-		if (count($terms) > 0) {
-			// found existing
-			$newterm = array_shift($terms);
+		if (isset($node->original->drupal_projects_project)) {
+			// update the taxonomy name
+			$term = _project_to_term($node->original);
+			$term->name = $t($node->title);
+			taxonomy_term_save($term);
 		} else {
-			// add a taxonomy term
-			$newterm = new stdClass();
-			$newterm->name = $t($node->title);
-			$newterm->vid  = $vocabulary_id;
-			taxonomy_term_save($newterm);
+			$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
+			if (count($terms) > 0) {
+				// found existing
+				$newterm = array_shift($terms);
+			} else {
+				// add a taxonomy term
+				$newterm = new stdClass();
+				$newterm->name = $t($node->title);
+				$newterm->vid  = $vocabulary_id;
+				taxonomy_term_save($newterm);
+			}
+			// attach to taxonomy
+			$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
 		}
 		
-		// attach to taxonomy
-		$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
+		// update the menu for the project minisite
+		if (isset($node->original)) {
+			$menu = _project_to_menu_array($node->original);
+			if (menu_load($menu['menu_name'])) {
+				// new menu, but got same menu name
+				$menu = _project_to_menu_array($node);
+				menu_save($menu);
+			}
+		}
+		
+		// BEWARE!
+		// if acronym has changed, so did project URI
+		// we have to update all subpages and their menu items
+		// have no idea how to do it programatically ;(
+		// manually resaving the page works
+		
+		// shortcut bar update
+		if (isset($node->original)) {
+			$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
+			$term_tid = _project_to_term_tid($node);
+			$new_title = $t(_project_to_acronym($node));
+			
+			$result = _project_get_shortcut_links();
+			foreach ($result as $link) {
+				$link['options'] = unserialize($link['options']);
+				$tid = @$link['options']['query']['tid'];
+				if ($tid == $term_tid) {
+					$link['link_title'] = $new_title;
+					menu_link_save($link);
+				}
+			}
+			menu_cache_clear_all();
+		}
 	}
 	if ($node->type == 'drupal_projects_page') {
 		// menu has to be expanded
 		$node->menu['expanded'] = 1;
 		
 		// derive path in form [project]/[page]
-		// should go through: drupal_projects_project -> project slug
-		// but taking a shortcut through menu_name
-		$node->path['alias'] = $node->menu['menu_name'] . '/' . _project_slug($node->title);
+		$project = _node_to_project($node);
+		$acronym = _project_to_acronym($project);
+		$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
 		$node->path['pathauto'] = 0;
 	}
 }
@@ -196,13 +232,12 @@ function drupal_projects_node_delete($node) {
 			taxonomy_term_delete($term->tid);
 		}
 		// delete shortcut links to project view
-		//$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
-		$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
-		foreach ($result as $m) {
-			$options = unserialize($m['options']);
+		$result = _project_get_shortcut_links();
+		foreach ($result as $link) {
+			$options = unserialize($link['options']);
 			$tid = @$options['query']['tid'];
 			if ($tid == $term->tid) {
-				menu_link_delete($m['mlid']);
+				menu_link_delete($link['mlid']);
 			}
 		}
 	
@@ -331,8 +366,10 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		
 		// display only parent pages that belong to current project
 		$term = taxonomy_term_load($selected_project_tid);
+		$project = _term_to_project($term);
+		$menu_name = _project_to_menu_name($project);
+		$pattern = '^' . $menu_name;
 		foreach ($form['menu']['link']['parent']['#options'] as $key => $option) {
-			$pattern = '^' . _term_slug($term->name);
 			if (!preg_match("/$pattern/", $key)) {
 				unset($form['menu']['link']['parent']['#options'][$key]);
 			}
@@ -560,15 +597,18 @@ function _project_to_menu($node) {
 		return false;
 	}
 }
-function _project_to_menu_array($node) {
+function _project_to_menu_array($project) {
 	$t = get_t();
 	$menu_array = array(
-		'menu_name' => _project_slug($t($node->title)),
-		'title'     => $t($node->title),
-		'description' => 'This menu defines the core structure for the subsite '.$node->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
-		'module'    => 'drupal_projects',
+		'menu_name'   => _project_to_menu_name($project),
+		'title'       =>  $t($project->title),
+		'description' => 'This menu defines the core structure for the subsite '.$project->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		'module'      => 'drupal_projects',
 	);
 	return $menu_array;
+}
+function _project_to_menu_name($project) {
+	return 'project-' . $project->nid . '-menu';
 }
 function _project_get_project_logo_uri($project) {
 	if (!isset($project->drupal_projects_image[$project->language][0]['uri'])) {
@@ -582,5 +622,9 @@ function _project_to_acronym($project) {
 		return $project->field_acronym[$project->language][0]['value'];
 	}
 	return $project->title;
+}
+function _project_get_shortcut_links() {
+	$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
+	return $result;
 }
 
