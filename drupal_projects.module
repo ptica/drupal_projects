@@ -77,6 +77,11 @@ function drupal_projects_node_insert($node) {
 		$menu = _project_to_menu_array($node);
 		if (!menu_load($menu['menu_name'])) {
 			menu_save($menu);
+			// allow this menu for relevant subpage content type
+			// otherwise you could put pages there
+			$allowed_menus = variable_get('menu_options_'.$node->type.'_page');
+			$allowed_menus[]  = $menu['menu_name'];
+			variable_set('menu_options_'.$node->type.'_page', $allowed_menus);
 		}
 		
 		// find coresponding term
@@ -210,7 +215,7 @@ function drupal_projects_node_presave($node) {
 		}
 	}
 	
-	if ($node->type == 'drupal_projects_page') {
+	if ($node->type == 'drupal_projects_page' || $node->type == 'personal_profile_page') {
 		// menu has to be expanded
 		$node->menu['expanded'] = 1;
 		
@@ -220,9 +225,9 @@ function drupal_projects_node_presave($node) {
 		$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
 		$node->path['pathauto'] = 0;
 	}
-	/*
-	 * ----------------------------------
-	 */
+	
+	/* ---------------------------------- */
+	
 	if ($node->type == 'personal_profile') {
 		// derive path from name field
 		// TODO test for filled one!!
@@ -335,6 +340,18 @@ function drupal_projects_node_delete($node) {
 					->fieldCondition('drupal_projects_project', 'tid', $term->tid, '=');
 			$result = $query->execute();
 
+			if (!empty($result['node'])) {
+				$nids = array_keys($result['node']);
+				node_delete_multiple($nids);
+			}
+			
+			// delete all personal profile subpages
+			$query = new EntityFieldQuery();
+			$query->entityCondition('entity_type', 'node')
+			->entityCondition('bundle', 'personal_profile_page')
+			->fieldCondition('field_profile', 'tid', $term->tid, '=');
+			$result = $query->execute();
+			
 			if (!empty($result['node'])) {
 				$nids = array_keys($result['node']);
 				node_delete_multiple($nids);
