@@ -72,15 +72,11 @@ function drupal_projects_init() {
 function drupal_projects_node_insert($node) {
 	$t = get_t();
 	
-	if ($node->type == 'drupal_projects') {
+	if ($node->type == 'drupal_projects' || $node->type == 'personal_profile') {
 		// create a new menu for the project minisite
 		$menu = _project_to_menu_array($node);
 		if (!menu_load($menu['menu_name'])) {
 			menu_save($menu);
-			// we gather project menus into some var, but why???
-			$allowed_menus = variable_get('menu_options_drupal_projects_page');
-			$allowed_menus[]  = $menu['menu_name'];
-			variable_set('menu_options_drupal_projects_page', $allowed_menus);
 		}
 		
 		// find coresponding term
@@ -92,13 +88,14 @@ function drupal_projects_node_insert($node) {
 		// add it to the shortcut set
 		$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
 		if ($shortcut_set && $term->tid) {
+			$shortcut_filter_param = $node->type == 'drupal_projects' ? 'tid' : 'tid_1'; // defined in admin views, where you add a profile filter
 			$shortcut_link = array(
 				'link_path' => 'admin/content',
 				'link_title' => $t(_project_to_acronym($node)),
 				'weight' => -20,
 				'menu_name' => $shortcut_set->set_name,
 				'plid' => 0,
-				'options' => array('query' => array('tid'=>$term->tid)),
+				'options' => array('query' => array($shortcut_filter_param=>$term->tid)),
 				'module'  => 'drupal_projects'
 			);
 			menu_link_save($shortcut_link);
@@ -139,6 +136,7 @@ function drupal_projects_node_presave($node) {
 	
 	if ($node->type == 'drupal_projects') {
 		// derive path from acronym field
+		// TODO test for filled one!!
 		$acronym = _project_to_acronym($node);
 		$node->path['alias'] = _project_slug($acronym);
 		$node->path['pathauto'] = 0;
@@ -211,6 +209,7 @@ function drupal_projects_node_presave($node) {
 			menu_cache_clear_all();
 		}
 	}
+	
 	if ($node->type == 'drupal_projects_page') {
 		// menu has to be expanded
 		$node->menu['expanded'] = 1;
@@ -221,6 +220,82 @@ function drupal_projects_node_presave($node) {
 		$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
 		$node->path['pathauto'] = 0;
 	}
+	/*
+	 * ----------------------------------
+	 */
+	if ($node->type == 'personal_profile') {
+		// derive path from name field
+		// TODO test for filled one!!
+		$node->path['alias'] = _project_slug($node->title);
+		$node->path['pathauto'] = 0;
+		
+		// taxonomy classification
+		$vocabulary_id = variable_get('profiles_vocabulary_id');
+		$vocabulary = taxonomy_vocabulary_load($vocabulary_id);
+		
+		if (isset($node->original->field_profile)) {
+			// update the taxonomy name
+			$term = _project_to_term($node->original);
+			$term->name = $t($node->title);
+			taxonomy_term_save($term);
+		} else {
+			$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
+			if (count($terms) > 0) {
+				// found existing
+				$newterm = array_shift($terms);
+			} else {
+				// add a taxonomy term
+				$newterm = new stdClass();
+				$newterm->name = $t($node->title);
+				$newterm->vid  = $vocabulary_id;
+				taxonomy_term_save($newterm);
+			}
+			// attach to taxonomy
+			$node->field_profile[$node->language][$newterm->tid] = (array) $newterm;
+		}
+	
+		// update the menu for the project minisite
+		if (isset($node->original)) {
+			$menu = _project_to_menu_array($node->original);
+			if (menu_load($menu['menu_name'])) {
+				// new menu, but got same menu name
+				$menu = _project_to_menu_array($node);
+				menu_save($menu);
+			}
+		}
+	
+		// BEWARE!
+		// if acronym has changed, so did project URI
+		// we have to update all subpage menu items
+		if (isset($node->original)) {
+			$old_slug = _project_slug($node->original->title);
+			$new_slug = _project_slug($node->title);
+			$result = _project_get_url_aliases($node->original);
+			foreach ($result as $path) {
+				$pattern = '^' . $old_slug . '\/';
+				$path['alias'] = preg_replace("/$pattern/", $new_slug . '/', $path['alias']);
+				path_save($path);
+			}
+		}
+		
+		// shortcut bar update
+		if (isset($node->original)) {
+			$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
+			$term_tid = _project_to_term_tid($node);
+			$new_title = $node->title;
+		
+			$result = _project_get_shortcut_links();
+			foreach ($result as $link) {
+				$link['options'] = unserialize($link['options']);
+				$tid = @$link['options']['query']['tid'];
+				if ($tid == $term_tid) {
+					$link['link_title'] = $new_title;
+					menu_link_save($link);
+				}
+			}
+			menu_cache_clear_all();
+		}
+	}
 }
 
 /**
@@ -229,9 +304,9 @@ function drupal_projects_node_presave($node) {
 function drupal_projects_node_delete($node) {
 	$t = get_t();
 	
-	if ($node->type == 'drupal_projects') {
+	if ($node->type == 'drupal_projects' || $node->type == 'personal_profile') {
 		// find appropriate vocabulary:
-		$vid = variable_get('drupal_projects_vocabulary_id');
+		$vid = $node->type == 'drupal_projects' ? variable_get('drupal_projects_vocabulary_id') : variable_get('profiles_vocabulary_id');
 		$vocabulary = taxonomy_vocabulary_load($vid);
 	
 		// delete a taxonomy term
@@ -244,7 +319,7 @@ function drupal_projects_node_delete($node) {
 		$result = _project_get_shortcut_links();
 		foreach ($result as $link) {
 			$options = unserialize($link['options']);
-			$tid = @$options['query']['tid'];
+			($tid = @$options['query']['tid']) || ($tid = @$options['query']['tid_1']);
 			if ($tid == $term->tid) {
 				menu_link_delete($link['mlid']);
 			}
@@ -256,7 +331,7 @@ function drupal_projects_node_delete($node) {
 			// delete all project subpages
 			$query = new EntityFieldQuery();
 			$query->entityCondition('entity_type', 'node')
-					->entityCondition('bundle', 'drupal_projects_page')                    
+					->entityCondition('bundle', 'drupal_projects_page')
 					->fieldCondition('drupal_projects_project', 'tid', $term->tid, '=');
 			$result = $query->execute();
 
@@ -536,7 +611,7 @@ function drupal_projects_menu_link_alter(&$link) {
 
 function drupal_projects_translated_menu_link_alter(&$link) {
 	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
-		$project_tid  = @$link['options']['query']['tid'];
+		($project_tid  = @$link['options']['query']['tid']) || ($project_tid  = @$link['options']['query']['tid_1']); 
 		$account = $GLOBALS['user'];
 		$term    = taxonomy_term_load($project_tid);
 		$project = _term_to_project($term);
@@ -578,7 +653,11 @@ function _project_to_term_tid($node) {
 	if (!empty($node)) {
 		//$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
 		//return $tid;
-		if ($project_ref  = $node->drupal_projects_project) {
+		if ($project_ref = @$node->drupal_projects_project) {
+			$project_term = array_shift($project_ref[$node->language]);
+			return $project_term['tid'];
+		}
+		if ($project_ref = @$node->field_profile) {
 			$project_term = array_shift($project_ref[$node->language]);
 			return $project_term['tid'];
 		}
@@ -594,12 +673,12 @@ function _term_to_project($term) {
 	// get all projects filled under this term
 	$nodes = node_load_multiple(taxonomy_select_nodes($term->tid));
 	// TODO BEWARE do not load all of them, filter them somehow!
-	foreach ($nodes as $project) {
-		if ($project->type == 'drupal_projects_project') {
+	foreach ($nodes as $node) {
+		if ($node->type == 'drupal_projects' || $node->type == 'personal_profile') {
 			break;
 		}
 	}
-	return $project;
+	return $node;
 	//$nodes = taxonomy_select_nodes($term->tid);
 	//$node = node_load($nodes[0]);
 	//$term_url = drupal_lookup_path('alias', 'node/'.$node->nid);

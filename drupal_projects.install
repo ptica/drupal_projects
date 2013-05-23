@@ -54,7 +54,6 @@ function drupal_projects_install() {
 	taxonomy_vocabulary_save($vocabulary);
 	variable_set('drupal_projects_vocabulary_id', $vocabulary->vid);
 	
-	
 	// add the body field to the node type
 	node_add_body_field($types['drupal_projects_page']);
 	
@@ -105,6 +104,18 @@ function drupal_projects_install() {
 			field_create_instance($instance);
 		}
 	}
+	
+	// Create taxonomy for Personal profiles
+	$t = get_t();
+	$vocabulary = new stdClass();
+	$vocabulary->name = $t('Profiles');
+	$vocabulary->module = 'taxonomy';
+	$vocabulary->machine_name = 'profiles';
+	$vocabulary->description = $t('');
+	$vocabulary->hierarchy = 0;
+	$vocabulary->weight = 0;
+	taxonomy_vocabulary_save($vocabulary);
+	variable_set('profiles_vocabulary_id', $vocabulary->vid);
 	
 	_create_drupal_projects_shortcut_set();
 }
