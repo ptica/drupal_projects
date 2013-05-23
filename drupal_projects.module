@@ -287,7 +287,7 @@ function drupal_projects_node_presave($node) {
 			$result = _project_get_shortcut_links();
 			foreach ($result as $link) {
 				$link['options'] = unserialize($link['options']);
-				$tid = @$link['options']['query']['tid'];
+				$tid = @$link['options']['query']['tid_1'];
 				if ($tid == $term_tid) {
 					$link['link_title'] = $new_title;
 					menu_link_save($link);
@@ -362,6 +362,11 @@ function drupal_projects_custom_theme() {
 		// we got a project page
 		return 'drufal_project';
 	}
+	if (@$term->vid == variable_get('profiles_vocabulary_id')) {
+		menu_tree_set_path('main-menu', 'people');
+		// we got a personal profile (page)
+		//return 'drufal_project';
+	}
 }
 
 /**
@@ -433,7 +438,7 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
 }
 
 /**
- * preselect the  && custom redirect after node delete
+ * preselect the project && custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'drupal_projects_page_node_form') {
@@ -479,6 +484,10 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		// create Drupal Project
 		$form['drupal_projects_project']['#access'] = false;
 	}
+	if ($form_id == 'personal_profile_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
+		// create Personal Profile
+		$form['field_profile']['#access'] = false;
+	}
 }
 function _custom_redirect_after_delete($form, &$form_state) {
 	// GET destination has precedence over $form_state['redirect']
@@ -507,7 +516,7 @@ function drupal_projects_preprocess_views_view(&$vars) {
 		// Default collapsed
 		$collapsed = TRUE;
 		$class = array('collapsible', 'collapsed');
-		if ((isset($_GET['tid']) && count($_GET) > 2) || ((!isset($_GET['tid']) && count($_GET) > 1))) {
+		if ((isset($_GET['tid_1']) && count($_GET) > 2) || (isset($_GET['tid']) && count($_GET) > 2) || ((!isset($_GET['tid_1']) && !isset($_GET['tid']) && count($_GET) > 1))) {
 			// assume other get vars are exposed filters, so expand fieldset
 			// to show applied filters
 			$collapsed = FALSE;
@@ -560,6 +569,36 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 					);
 				}
 			}
+			if (isset($_GET['tid_1'])) {
+				// new link 'Add page to personal profile'
+				$item = menu_get_item('node/add/personal-profile-page');
+				$item['href'] .= '/'.$_GET['tid_1'];
+				$item['title'] = t('Add page to personal profile');
+			
+				// remove original 'add content' link
+				if ($data['actions']['output'][0]['#link']['path'] == 'node/add') {
+					unset($data['actions']['output'][0]);
+				}
+				// add if access allowed
+				if ($item['access']) {
+					$data['actions']['output'][] = array(
+							'#theme' => 'menu_local_action',
+							'#link' => $item,
+					);
+				}
+			
+				// new link 'Alter project menu'
+				$term = taxonomy_term_load($_GET['tid_1']);
+				$project = _term_to_project($term);
+				$item = menu_get_item('admin/structure/menu/manage/' . _project_to_menu_name($project));
+				$item['title'] = t('Alter project menu');
+				if (@$item['access']) {
+					$data['actions']['output'][] = array(
+							'#theme' => 'menu_local_action',
+							'#link' => $item,
+					);
+				}
+			}
 			
 			break;
 	}
@@ -578,6 +617,11 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	// turn the configure link into 'new project link'
 	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ New project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
+	
+	// another link there, just if theres no profile yet
+	$toolbar['toolbar_drawer'][0]['configure2'] = $toolbar['toolbar_drawer'][0]['configure'];
+	$toolbar['toolbar_drawer'][0]['configure2']['#title'] = t('+ Personal profile');
+	$toolbar['toolbar_drawer'][0]['configure2']['#href']  = 'node/add/personal-profile';
 	return $toolbar;
 }
 /**
