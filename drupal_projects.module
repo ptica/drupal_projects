@@ -488,6 +488,10 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'personal_profile_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
 		// create Personal Profile
 		$form['field_profile']['#access'] = false;
+		
+		_wrap_form_field($form, 'field_main_research_interests');
+		_wrap_form_field($form, 'field_curriculum_vitae');
+		//_wrap_form_field($form, 'body');
 	}
 }
 function _custom_redirect_after_delete($form, &$form_state) {
@@ -776,4 +780,15 @@ function _project_get_url_aliases($project) {
 	$project_slug = _project_slug(_project_to_acronym($project));
 	$result = db_query("SELECT * FROM {url_alias} WHERE alias LIKE :alias", array(':alias'=>"$project_slug/%"), array('fetch' => PDO::FETCH_ASSOC));
 	return $result;
+}
+function _wrap_form_field(&$form, $field_name) {
+	$form['fieldsetted_' . $field_name] = array(
+			'#title' => $form[$field_name][$form['language']['#value']]['#title'],
+			'#type' => 'fieldset',
+			'#collapsible' => TRUE,
+			'#collapsed' => TRUE,
+			'#weight' => $form[$field_name]['#weight'],
+	);
+	$form['fieldsetted_' . $field_name][$field_name] = $form[$field_name];
+	unset($form[$field_name]);
 }
