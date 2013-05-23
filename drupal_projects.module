@@ -441,16 +441,17 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
  * preselect the project && custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
-	if ($form_id == 'drupal_projects_page_node_form') {
+	if ($form_id == 'drupal_projects_page_node_form' || $form_id == 'personal_profile_page_node_form') {
 		// Subpage
 		$lang = $form['language']['#value'];
+		$parent_field = $form_id == 'drupal_projects_page_node_form' ? 'drupal_projects_project' : 'field_profile';
 		
 		if (is_numeric(arg(3))) {
 			// preselected project
 			$selected_project_tid = arg(3);
-			$form['drupal_projects_project'][$lang]['#default_value'] = $selected_project_tid;
+			$form[$parent_field][$lang]['#default_value'] = $selected_project_tid;
 		} else {
-			$selected_project_tid = $form['drupal_projects_project'][$lang]['#default_value'][0];
+			$selected_project_tid = $form[$parent_field][$lang]['#default_value'][0];
 		}
 		
 		// display only parent pages that belong to current project
@@ -470,8 +471,8 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		}
 		
 		// hide
-		$form['drupal_projects_project'][$lang]['#disabled'] = true;
-		$form['drupal_projects_project'][$lang]['#type']     = 'value';
+		$form[$parent_field][$lang]['#disabled'] = true;
+		$form[$parent_field][$lang]['#type']     = 'value';
 		$form['menu']['link']['weight']['#disabled']         = true;
 		$form['menu']['link']['weight']['#type']             = 'value';
 		$form['menu']['link']['description']['#disabled']    = true;
