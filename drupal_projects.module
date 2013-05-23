@@ -455,7 +455,8 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
 }
 
 /**
- * preselect the project && custom redirect after node delete
+ * preselect the project / profile
+ * custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'drupal_projects_page_node_form' || $form_id == 'personal_profile_page_node_form') {
@@ -496,6 +497,9 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		$form['menu']['link']['description']['#type']        = 'value';
 	}
 	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'drupal_projects') {
+		$form['#submit'][] = '_custom_redirect_after_delete';
+	}
+	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'personal_profile') {
 		$form['#submit'][] = '_custom_redirect_after_delete';
 	}
 	if ($form_id == 'drupal_projects_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
