@@ -512,6 +512,7 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		
 		_wrap_form_field($form, 'field_main_research_interests');
 		_wrap_form_field($form, 'field_curriculum_vitae');
+		_wrap_form_field($form, 'field_selected_bibliography');
 		//_wrap_form_field($form, 'body');
 	}
 }
