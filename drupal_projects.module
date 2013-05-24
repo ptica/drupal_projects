@@ -382,7 +382,7 @@ function drupal_projects_custom_theme() {
 	if (@$term->vid == variable_get('profiles_vocabulary_id')) {
 		menu_tree_set_path('main-menu', 'people');
 		// we got a personal profile (page)
-		//return 'drufal_project';
+		return 'drufal_profile';
 	}
 }
 
