@@ -370,6 +370,7 @@ function drupal_projects_node_delete($node) {
 function drupal_projects_custom_theme() {
 	// default theme for admin area
 	if (path_is_admin(current_path())) { return; }
+	if (preg_match('/user\/\d+/', current_path())) { return; }
 
 	// find out if the current page is part of projects hierarchy
 	$node = node_load(arg(1));
