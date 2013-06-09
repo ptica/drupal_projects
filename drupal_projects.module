@@ -95,12 +95,11 @@ function drupal_projects_node_insert($node) {
 		if ($shortcut_set && $term->tid) {
 			$shortcut_filter_param = $node->type == 'drupal_projects' ? 'tid' : 'tid_1'; // defined in admin views, where you add a profile filter
 			$shortcut_link = array(
-				'link_path' => 'admin/content',
+				'link_path' => 'admin/my-content/' . $term->tid,
 				'link_title' => $t(_project_to_acronym($node)),
 				'weight' => -20,
 				'menu_name' => $shortcut_set->set_name,
 				'plid' => 0,
-				'options' => array('query' => array($shortcut_filter_param=>$term->tid)),
 				'module'  => 'drupal_projects'
 			);
 			menu_link_save($shortcut_link);
@@ -198,20 +197,7 @@ function drupal_projects_node_presave($node) {
 		
 		// shortcut bar update
 		if (isset($node->original)) {
-			$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
-			$term_tid = _project_to_term_tid($node);
-			$new_title = $t(_project_to_acronym($node));
-			
-			$result = _project_get_shortcut_links();
-			foreach ($result as $link) {
-				$link['options'] = unserialize($link['options']);
-				$tid = @$link['options']['query']['tid'];
-				if ($tid == $term_tid) {
-					$link['link_title'] = $new_title;
-					menu_link_save($link);
-				}
-			}
-			menu_cache_clear_all();
+			drupal_projects_shortcut_update($node);
 		}
 	}
 	
@@ -285,22 +271,25 @@ function drupal_projects_node_presave($node) {
 		
 		// shortcut bar update
 		if (isset($node->original)) {
-			$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
-			$term_tid = _project_to_term_tid($node);
-			$new_title = $node->title;
-		
-			$result = _project_get_shortcut_links();
-			foreach ($result as $link) {
-				$link['options'] = unserialize($link['options']);
-				$tid = @$link['options']['query']['tid_1'];
-				if ($tid == $term_tid) {
-					$link['link_title'] = $new_title;
-					menu_link_save($link);
-				}
-			}
-			menu_cache_clear_all();
+			drupal_projects_shortcut_update($node);
 		}
 	}
+}
+
+function drupal_projects_shortcut_update($node) {
+	$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
+	$term_tid = _project_to_term_tid($node);
+	$new_title = $node->title;
+	
+	$result = _project_get_shortcut_links($term_tid);
+	foreach ($result as $link) {
+		if ($link['link_path'] == 'admin/my-content/' . $term_tid) {
+			$link['options']    = unserialize($link['options']);
+			$link['link_title'] = $new_title;
+			menu_link_save($link);
+		}
+	}
+	menu_cache_clear_all();
 }
 
 /**
@@ -321,11 +310,10 @@ function drupal_projects_node_delete($node) {
 			taxonomy_term_delete($term->tid);
 		}
 		// delete shortcut links to project view
-		$result = _project_get_shortcut_links();
+		// TODO could be rewritten now!! as link_path contains project_tid now
+		$result = _project_get_shortcut_links($term->tid);
 		foreach ($result as $link) {
-			$options = unserialize($link['options']);
-			($tid = @$options['query']['tid']) || ($tid = @$options['query']['tid_1']);
-			if ($tid == $term->tid) {
+			if ($link['link_path'] == 'admin/my-content/' . $term->tid) {
 				menu_link_delete($link['mlid']);
 			}
 		}
@@ -519,9 +507,9 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 }
 function _custom_redirect_after_delete($form, &$form_state) {
 	// GET destination has precedence over $form_state['redirect']
-	$_GET['destination'] = 'admin/content?type=drupal_projects';
+	$_GET['destination'] = 'admin/my-content?type=drupal_projects';
 	drupal_static_reset('drupal_get_destination');
-	$form_state['redirect'] = 'admin/content';
+	$form_state['redirect'] = 'admin/my-content';
 }
 /**
  * collapse the 'Bulk Operations' form and put it down the page
@@ -589,37 +577,25 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				}
 			}
 			break;
-		case 'admin/content':
-			// project_tid is either in $_GET['tid'], $_GET['tid_1'] or in $GET[q]
+		case 'admin/my-content/%':
 			$current_path = current_path();
 			
-			if (preg_match('/admin\/content\/(\d+)/', $current_path, $matches)) {
+			if (preg_match('/admin\/my-content\/(\d+)/', $current_path, $matches)) {
 				$project_tid = $matches[1];
 			}
-			if (isset($_GET['tid'])) {
-				$project_tid = $_GET['tid']; 
-			}
-			if (isset($_GET['tid_1'])) {
-				$project_tid = $_GET['tid_1'];
-				$profile_tid = $_GET['tid_1'];
+			if (!$project_tid) {
+				break;
 			}
 			
-			if (@$project_tid) {
-				// tweaking the link back
-				$data['tabs'][0]['output'][0]['#link']['href'] = 'admin/content/' . $project_tid;
-			}
+			$term = taxonomy_term_load($project_tid);
+			$project = _term_to_project($term);
 			
-			
-			if (isset($_GET['tid'])) {
+			if ($project->type == 'drupal_projects') {
 				// new link 'Add page to project'
 				$item = menu_get_item('node/add/drupal-projects-page');
-				$item['href'] .= '/'.$_GET['tid'];
+				$item['href'] .= '/'.$project_tid;
 				$item['title'] = t('Add page to project');
 				
-				// remove original 'add content' link
-				if ($data['actions']['output'][0]['#link']['path'] == 'node/add') {
-					unset($data['actions']['output'][0]);
-				}
 				// add if access allowed
 				if ($item['access']) {
 					$data['actions']['output'][] = array(
@@ -629,8 +605,6 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				}
 				
 				// new link 'Alter project menu'
-				$term = taxonomy_term_load($_GET['tid']);
-				$project = _term_to_project($term);
 				$item = menu_get_item('admin/structure/menu/manage/' . _project_to_menu_name($project));
 				$item['title'] = t('Alter project menu');
 				if (@$item['access']) {
@@ -640,16 +614,12 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 					);
 				}
 			}
-			if (isset($_GET['tid_1'])) {
+			if ($project->type == 'personal_profile') {
 				// new link 'Add page to personal profile'
 				$item = menu_get_item('node/add/personal-profile-page');
-				$item['href'] .= '/'.$_GET['tid_1'];
+				$item['href'] .= '/'.$project_tid;
 				$item['title'] = t('Add page to personal profile');
 			
-				// remove original 'add content' link
-				if ($data['actions']['output'][0]['#link']['path'] == 'node/add') {
-					unset($data['actions']['output'][0]);
-				}
 				// add if access allowed
 				if ($item['access']) {
 					$data['actions']['output'][] = array(
@@ -659,8 +629,6 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				}
 			
 				// new link 'Alter project menu'
-				$term = taxonomy_term_load($_GET['tid_1']);
-				$project = _term_to_project($term);
 				$item = menu_get_item('admin/structure/menu/manage/' . _project_to_menu_name($project));
 				$item['title'] = t('Alter project menu');
 				if (@$item['access']) {
@@ -764,14 +732,15 @@ function drupal_projects_menu_access() {
  */
 function drupal_projects_menu_link_alter(&$link) {
 	// please call hook_translated_menu_link_alter on my links
-	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
+	if (preg_match('/admin\/my-content/', $link['link_path']) && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
 		$link['options']['alter'] = TRUE;
 	}
 }
 
 function drupal_projects_translated_menu_link_alter(&$link) {
-	if ($link['link_path'] == 'admin/content' && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
-		($project_tid  = @$link['options']['query']['tid']) || ($project_tid  = @$link['options']['query']['tid_1']);
+	$matches = array();
+	if (preg_match('/admin\/my-content\/(\d+)/', $link['link_path'], $matches) && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
+		$project_tid = $matches[1];
 		$account = $GLOBALS['user'];
 		$term    = taxonomy_term_load($project_tid);
 		$project = _term_to_project($term);
@@ -882,8 +851,8 @@ function _project_to_acronym($project) {
 	}
 	return $project->title;
 }
-function _project_get_shortcut_links() {
-	$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/content'), array('fetch' => PDO::FETCH_ASSOC));
+function _project_get_shortcut_links($project_tid) {
+	$result = db_query("SELECT * FROM {menu_links} WHERE link_path = :path AND module = 'drupal_projects'", array(':path' => 'admin/my-content/'.$project_tid), array('fetch' => PDO::FETCH_ASSOC));
 	return $result;
 }
 function _project_get_url_aliases($project) {
