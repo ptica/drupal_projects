@@ -691,7 +691,7 @@ function drupal_projects_menu() {
 			'description' => 'Allow fellows to edit.',
 			'page callback' => 'workbench_access_editors',
 			'page arguments' => array('taxonomy', 2),
-			'access callback' => 'drupal_projects_menu_access',
+			'access callback' => 'drupal_projects_editors_menu_access',
 			'access arguments' => array('taxonomy', 2),
 			'type' => MENU_LOCAL_TASK,
 			'weight' => 10,
@@ -702,7 +702,6 @@ function drupal_projects_menu() {
 			'title' => 'My Content',
 			'description' => 'List of editorial groups.',
 			'page callback' => 'workbench_access_sections',
-			//'access callback' => 'drupal_projects_menu_access',
 			'access arguments' => array('access workbench'),
 			'type' => MENU_LOCAL_TASK,
 			'weight' => 10,
@@ -712,7 +711,7 @@ function drupal_projects_menu() {
 	
 	return $items;
 }
-function drupal_projects_menu_access() {
+function drupal_projects_editors_menu_access() {
 	$args = func_get_args();
 	$project_tid = array_pop($args);
 	$term = taxonomy_term_load($project_tid);
@@ -721,7 +720,11 @@ function drupal_projects_menu_access() {
 	$project = _term_to_project($term);
 	if (
 	      user_access('assign workbench access')
-	  || (user_access('assign workbench subaccess') && node_access('update', $project, $account))
+	      // two options: just owner can share, or all editors can share
+	      // editors check
+	      //  || (user_access('assign workbench subaccess') && node_access('update', $project, $account))
+	      // owner check
+	      || (user_access('assign workbench subaccess') && $account->uid == $project->uid)
 	) {
 		return TRUE;
 	}
