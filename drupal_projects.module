@@ -39,13 +39,14 @@ function drupal_projects_form($node, $form_state) {
 function drupal_projects_init() {
 	// beware: have to load it every time, not just only for admin ones
 	// as the overlay has the code in the parent window, which is ordinary node/nid page
-	$path = drupal_get_path('module', 'drupal_projects');
-	drupal_add_js($path . '/js/drupal_projects.js');
+	// no more needed as we do not use query string params on project links anymore
+	//$path = drupal_get_path('module', 'drupal_projects');
+	//drupal_add_js($path . '/js/drupal_projects.js');
 	//drupal_add_css($path . '/mymodule.css');
 	
 	/**
 	 * force public project urls ending in trailing slash
-	 * so we can reuse existing relative links
+	 * so relative links work as expected (ie. relative to the project url)
 	 */
 	if (!path_is_admin(current_path())) {
 		$node = menu_get_object();
@@ -93,7 +94,6 @@ function drupal_projects_node_insert($node) {
 		// add it to the shortcut set
 		$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
 		if ($shortcut_set && $term->tid) {
-			$shortcut_filter_param = $node->type == 'drupal_projects' ? 'tid' : 'tid_1'; // defined in admin views, where you add a profile filter
 			$shortcut_link = array(
 				'link_path' => 'admin/my-content/' . $term->tid,
 				'link_title' => $t(_project_to_acronym($node)),
@@ -369,8 +369,8 @@ function drupal_projects_custom_theme() {
 		return 'drufal_project';
 	}
 	if (@$term->vid == variable_get('profiles_vocabulary_id')) {
-		menu_tree_set_path('main-menu', 'people');
 		// we got a personal profile (page)
+		menu_tree_set_path('main-menu', 'people');
 		return 'drufal_profile';
 	}
 }
@@ -595,8 +595,6 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				$item = menu_get_item('node/add/drupal-projects-page');
 				$item['href'] .= '/'.$project_tid;
 				$item['title'] = t('Add page to project');
-				
-				// add if access allowed
 				if ($item['access']) {
 					$data['actions']['output'][] = array(
 						'#theme' => 'menu_local_action',
@@ -619,8 +617,6 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				$item = menu_get_item('node/add/personal-profile-page');
 				$item['href'] .= '/'.$project_tid;
 				$item['title'] = t('Add page to personal profile');
-			
-				// add if access allowed
 				if ($item['access']) {
 					$data['actions']['output'][] = array(
 							'#theme' => 'menu_local_action',
