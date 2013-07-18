@@ -1,5 +1,17 @@
 <?php
 
+/*
+ * takes care of
+ *  - drupal_projects
+ *  - drupal_projects_page
+ *  - personal_profile
+ *  - personal_profile_page
+ *  - ufal_tool
+ *  - ufal_tool_page
+ *  
+ *  content types
+ */
+
 function drupal_projects_node_info() {
 
 	$items['drupal_projects'] = array(
@@ -206,7 +218,11 @@ function drupal_projects_term_create($node) {
 	return $newterm;
 }
 function _attach_node_to_project($node, $project_term) {
-	// attach node to taxonomy
+	// attach node to taxonomy term
+	$project_field = _get_project_attachment_field($node);
+	$node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
+}
+function _get_project_attachment_field($node) {
 	$tx = array(
 		'personal_profile' => 'field_profile',
 		'drupal_projects'  => 'drupal_projects_project',
@@ -216,9 +232,8 @@ function _attach_node_to_project($node, $project_term) {
 	if (!$project_field) {
 		drupal_set_message('no project field defined for ' . $node->type, 'warning');
 	}
-	// attach
-	$node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
-} 
+	return $project_field;
+}
 
 /**
  * Implements hook_node_delete().
@@ -248,25 +263,16 @@ function drupal_projects_node_delete($node) {
 		// delete menu for the project minisite
 		$menu = _project_to_menu($node);
 		if ($menu) {
-			// delete all project subpages
+			// delete all project/profile/tools subpages
+			$project_field = _get_project_attachment_field($node);
+			$bundle = $node->type . '_page';
+			
 			$query = new EntityFieldQuery();
 			$query->entityCondition('entity_type', 'node')
-					->entityCondition('bundle', 'drupal_projects_page')
-					->fieldCondition('drupal_projects_project', 'tid', $term->tid, '=');
+					->entityCondition('bundle', $bundle)
+					->fieldCondition($project_field, 'tid', $term->tid, '=');
 			$result = $query->execute();
 
-			if (!empty($result['node'])) {
-				$nids = array_keys($result['node']);
-				node_delete_multiple($nids);
-			}
-			
-			// delete all personal profile subpages
-			$query = new EntityFieldQuery();
-			$query->entityCondition('entity_type', 'node')
-			->entityCondition('bundle', 'personal_profile_page')
-			->fieldCondition('field_profile', 'tid', $term->tid, '=');
-			$result = $query->execute();
-			
 			if (!empty($result['node'])) {
 				$nids = array_keys($result['node']);
 				node_delete_multiple($nids);
@@ -292,13 +298,18 @@ function drupal_projects_custom_theme() {
 	$term = _project_to_term($node);
 	
 	if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
-		// we got a project page
+		// we got a project (page)
 		return 'drufal_project';
 	}
 	if (@$term->vid == variable_get('profiles_vocabulary_id')) {
 		// we got a personal profile (page)
 		menu_tree_set_path('main-menu', 'people');
 		return 'drufal_profile';
+	}
+	if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
+		// we got a ufal tool (page)
+		menu_tree_set_path('main-menu', 'tools');
+		return 'drufal_tool';
 	}
 }
 
@@ -375,17 +386,22 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
  * custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
-	if ($form_id == 'drupal_projects_page_node_form' || $form_id == 'personal_profile_page_node_form') {
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)_page_node_form$/', $form_id)) {
 		// Subpage
 		$lang = $form['language']['#value'];
-		$parent_field = $form_id == 'drupal_projects_page_node_form' ? 'drupal_projects_project' : 'field_profile';
+		$tx = array(
+			'drupal_projects_page_node_form'  => 'drupal_projects_project',
+			'personal_profile_page_node_form' => 'field_profile',
+			'ufal_tool_page_node_form'        => 'field_project_term',
+		);
+		$project_field = @$tx[$form_id];
 		
 		if (is_numeric(arg(3))) {
 			// preselected project
 			$selected_project_tid = arg(3);
-			$form[$parent_field][$lang]['#default_value'] = $selected_project_tid;
+			$form[$project_field][$lang]['#default_value'] = $selected_project_tid;
 		} else {
-			$selected_project_tid = $form[$parent_field][$lang]['#default_value'][0];
+			$selected_project_tid = $form[$project_field][$lang]['#default_value'][0];
 		}
 		
 		// display only parent pages that belong to current project
@@ -405,17 +421,14 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		}
 		
 		// hide
-		$form[$parent_field][$lang]['#disabled'] = true;
-		$form[$parent_field][$lang]['#type']     = 'value';
+		$form[$project_field][$lang]['#disabled'] = true;
+		$form[$project_field][$lang]['#type']     = 'value';
 		$form['menu']['link']['weight']['#disabled']         = true;
 		$form['menu']['link']['weight']['#type']             = 'value';
 		$form['menu']['link']['description']['#disabled']    = true;
 		$form['menu']['link']['description']['#type']        = 'value';
 	}
-	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'drupal_projects') {
-		$form['#submit'][] = '_custom_redirect_after_delete';
-	}
-	if ($form_id == 'node_delete_confirm' && $form['#node']->type == 'personal_profile') {
+	if ($form_id == 'node_delete_confirm' && preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $form['#node']->type)) {
 		$form['#submit'][] = '_custom_redirect_after_delete';
 	}
 	if ($form_id == 'drupal_projects_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
@@ -431,10 +444,14 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		_wrap_form_field($form, 'field_selected_bibliography');
 		//_wrap_form_field($form, 'body');
 	}
+	if ($form_id == 'ufal_tool_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
+		// create Ufal Tool
+		$form['field_project_term']['#access'] = false;
+	}
 }
 function _custom_redirect_after_delete($form, &$form_state) {
 	// GET destination has precedence over $form_state['redirect']
-	$_GET['destination'] = 'admin/my-content?type=drupal_projects';
+	$_GET['destination'] = 'admin/my-content';
 	drupal_static_reset('drupal_get_destination');
 	$form_state['redirect'] = 'admin/my-content';
 }
@@ -796,12 +813,6 @@ function _wrap_form_field(&$form, $field_name) {
 	);
 	$form['fieldsetted_' . $field_name][$field_name] = $form[$field_name];
 	unset($form[$field_name]);
-}
-function _is_managed_type($node_type) {
-	if ($node_type == 'drupal_projects')  return true;
-	if ($node_type == 'personal_profile') return true;
-	if ($node_type == 'ufal_tool')        return true;
-	return false;
 }
 function _project_to_vocabulary_id($node) {
 	$tx = array(
