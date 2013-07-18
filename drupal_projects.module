@@ -484,7 +484,8 @@ function drupal_projects_preprocess_views_view(&$vars) {
 		// Default collapsed
 		$collapsed = TRUE;
 		$class = array('collapsible', 'collapsed');
-		if ((isset($_GET['tid_1']) && count($_GET) > 2) || (isset($_GET['tid']) && count($_GET) > 2) || ((!isset($_GET['tid_1']) && !isset($_GET['tid']) && count($_GET) > 1))) {
+		// TODO, don't know how to detect selected filters
+		if (0) {
 			// assume other get vars are exposed filters, so expand fieldset
 			// to show applied filters
 			$collapsed = FALSE;
@@ -535,53 +536,35 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 			$project = _term_to_project($term);
 			
 			if ($project->type == 'drupal_projects') {
-				// new link 'Add page to project'
-				$item = menu_get_item('node/add/drupal-projects-page');
-				$item['href'] .= '/'.$project_tid;
-				$item['title'] = t('Add page to project');
-				if ($item['access']) {
-					$data['actions']['output'][] = array(
-						'#theme' => 'menu_local_action',
-						'#link' => $item,
-					);
-				}
-				
-				// new link 'Alter project menu'
-				$item = menu_get_item('admin/structure/menu/manage/' . _project_to_menu_name($project));
-				$item['title'] = t('Alter project menu');
-				if (@$item['access']) {
-					$data['actions']['output'][] = array(
-							'#theme' => 'menu_local_action',
-							'#link' => $item,
-					);
-				}
+				_add_local_task($data, t('Add page to project'), 'node/add/drupal-projects-page', "/$project_tid");
+				_add_local_task($data, t('Alter project menu'),  'admin/structure/menu/manage/' . _project_to_menu_name($project));
 			}
 			if ($project->type == 'personal_profile') {
-				// new link 'Add page to personal profile'
-				$item = menu_get_item('node/add/personal-profile-page');
-				$item['href'] .= '/'.$project_tid;
-				$item['title'] = t('Add page to personal profile');
-				if ($item['access']) {
-					$data['actions']['output'][] = array(
-							'#theme' => 'menu_local_action',
-							'#link' => $item,
-					);
-				}
-			
-				// new link 'Alter project menu'
-				$item = menu_get_item('admin/structure/menu/manage/' . _project_to_menu_name($project));
-				$item['title'] = t('Alter project menu');
-				if (@$item['access']) {
-					$data['actions']['output'][] = array(
-							'#theme' => 'menu_local_action',
-							'#link' => $item,
-					);
-				}
+				_add_local_task($data, t('Add page to personal profile'), 'node/add/personal-profile-page', "/$project_tid");
+				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project)); 
+			}
+			if ($project->type == 'ufal_tool') {
+				_add_local_task($data, t('Add page to tool site'), 'node/add/ufal-tool-page', "/$project_tid");
+				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project));
 			}
 			
 			break;
 	}
 }
+function _add_local_task(&$data, $title, $destination, $href_suffix = null) {
+	$item = menu_get_item($destination);
+	if ($href_suffix) {
+		$item['href'] .= $href_suffix;
+	}
+	$item['title'] = $title;
+	if ($item['access']) {
+		$data['actions']['output'][] = array(
+				'#theme' => 'menu_local_action',
+				'#link' => $item,
+		);
+	}
+}
+
 /**
  * Adding '+ New project' link into shortcut menu
  */
