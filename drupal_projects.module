@@ -78,7 +78,7 @@ function drupal_projects_init() {
 function drupal_projects_node_insert($node) {
 	$t = get_t();
 	
-	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node->type)) {
+	if (_is_managed_project_type($node->type)) {
 		// create a new menu for the project minisite
 		$menu = _project_to_menu_array($node);
 		if (!menu_load($menu['menu_name'])) {
@@ -122,7 +122,7 @@ function drupal_projects_node_insert($node) {
 
 function drupal_projects_node_presave($node) {
 	$t = get_t();
-	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node->type)) {
+	if (_is_managed_project_type($node->type)) {
 		// derive path from acronym field
 		// TODO test for user filled path here!!
 		$acronym = _project_to_acronym($node);
@@ -227,6 +227,9 @@ function _get_project_attachment_field($node) {
 		'personal_profile' => 'field_profile',
 		'drupal_projects'  => 'drupal_projects_project',
 		'ufal_tool'        => 'field_project_term',
+		'personal_profile_page' => 'field_profile',
+		'drupal_projects_page'  => 'drupal_projects_project',
+		'ufal_tool_page'        => 'field_project_term',
 	);
 	$project_field = @$tx[$node->type];
 	if (!$project_field) {
@@ -241,7 +244,7 @@ function _get_project_attachment_field($node) {
 function drupal_projects_node_delete($node) {
 	$t = get_t();
 	
-	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node->type)) {
+	if (_is_managed_project_type($node->type)) {
 		$vocabulary_id = _project_to_vocabulary_id($node);
 		$vocabulary    = taxonomy_vocabulary_load($vocabulary_id);
 	
@@ -428,7 +431,7 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		$form['menu']['link']['description']['#disabled']    = true;
 		$form['menu']['link']['description']['#type']        = 'value';
 	}
-	if ($form_id == 'node_delete_confirm' && preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $form['#node']->type)) {
+	if ($form_id == 'node_delete_confirm' && _is_managed_project_type($form['#node']->type)) {
 		$form['#submit'][] = '_custom_redirect_after_delete';
 	}
 	if ($form_id == 'drupal_projects_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
@@ -710,13 +713,8 @@ function _term_slug($title) {
 
 function _project_to_term_tid($node) {
 	if (!empty($node)) {
-		//$tid  = @$node->drupal_projects_project[$node->language][0]['tid'];
-		//return $tid;
-		if ($project_ref = @$node->drupal_projects_project) {
-			$project_term = array_shift($project_ref[$node->language]);
-			return $project_term['tid'];
-		}
-		if ($project_ref = @$node->field_profile) {
+		$project_field = _get_project_attachment_field($node);
+		if ($project_ref = @$node->{$project_field}) {
 			$project_term = array_shift($project_ref[$node->language]);
 			return $project_term['tid'];
 		}
@@ -733,7 +731,7 @@ function _term_to_project($term) {
 	$nodes = node_load_multiple(taxonomy_select_nodes($term->tid));
 	// TODO BEWARE do not load all of them, filter them somehow!
 	foreach ($nodes as $node) {
-		if ($node->type == 'drupal_projects' || $node->type == 'personal_profile') {
+		if (_is_managed_project_type($node->type)) {
 			break;
 		}
 	}
@@ -813,4 +811,8 @@ function _project_to_vocabulary_id($node) {
 		drupal_set_message('no vocabulary defined for ' . $node->type, 'warning');
 	} 
 	return variable_get($var_name);
+}
+function _is_managed_project_type($node_type) {
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node_type)) { return true; }
+	return false;
 }
