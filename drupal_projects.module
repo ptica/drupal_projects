@@ -580,10 +580,15 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ New project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
 	
-	// another link there, just if theres no profile yet
+	// another link there
+	$toolbar['toolbar_drawer'][0]['configure3'] = $toolbar['toolbar_drawer'][0]['configure'];
+	$toolbar['toolbar_drawer'][0]['configure3']['#title'] = t('+ New tool');
+	$toolbar['toolbar_drawer'][0]['configure3']['#href']  = 'node/add/ufal-tool';
+	
 	$toolbar['toolbar_drawer'][0]['configure2'] = $toolbar['toolbar_drawer'][0]['configure'];
 	$toolbar['toolbar_drawer'][0]['configure2']['#title'] = t('+ Personal profile');
 	$toolbar['toolbar_drawer'][0]['configure2']['#href']  = 'node/add/personal-profile';
+	
 	return $toolbar;
 }
 /**
