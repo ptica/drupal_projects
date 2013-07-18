@@ -67,13 +67,13 @@ function drupal_projects_init() {
  * Implements hook_node_insert().
  * 
  * new project needs own menu
- * new project added to the projects shortcuts
+ * new project needs shortcut
  * $node already has $node->nid
  */
 function drupal_projects_node_insert($node) {
 	$t = get_t();
 	
-	if ($node->type == 'drupal_projects' || $node->type == 'personal_profile') {
+	if ($node->type == 'drupal_projects' || $node->type == 'personal_profile' || $node->type == 'ufal_tool') {
 		// create a new menu for the project minisite
 		$menu = _project_to_menu_array($node);
 		if (!menu_load($menu['menu_name'])) {
@@ -91,12 +91,12 @@ function drupal_projects_node_insert($node) {
 		// workbench access
 		_workbench_access_allow_user_access_to_project($term->tid);
 		
-		// add it to the shortcut set
+		// add it to the shortcuts
 		$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
 		if ($shortcut_set && $term->tid) {
 			$shortcut_link = array(
 				'link_path' => 'admin/my-content/' . $term->tid,
-				'link_title' => $t(_project_to_acronym($node)),
+				'link_title' => _project_to_acronym($node),
 				'weight' => -20,
 				'menu_name' => $shortcut_set->set_name,
 				'plid' => 0,
@@ -106,33 +106,13 @@ function drupal_projects_node_insert($node) {
 			menu_cache_clear_all();
 		}
 	}
-	
-	if ($node->type == 'drupal_projects_page') {
-		// add it to the menu
-		// commented out, as we use the std menu vertical tab by default
-		// expanded is carried out in presave hook below
-		/*
-		$term = _project_to_term($node);
-		$menu_name = _project_slug(@$term->name);
-		$menu_tree =  menu_tree_all_data($menu_name);
-		if ($menu = menu_load($menu_name)) {
-			$item = array(
-				'link_path'  => drupal_get_normal_path('node/'.$node->nid),
-				'link_title' => $node->title,
-				'menu_name'  => $menu_name,
-				'module'     => 'drupal_projects',
-				'expanded'   => 1,
-			);
-			menu_link_save($item);
-			menu_cache_clear_all();
-		} */
-		
-	}
 }
 
 /**
- * Act on a node being inserted or updated.
- * - vocabulary term added
+ * a node being inserted or updated.
+ *  - vocabulary term
+ *  - auto path
+ *  - 
  */
 
 function drupal_projects_node_presave($node) {
@@ -140,7 +120,7 @@ function drupal_projects_node_presave($node) {
 	
 	if ($node->type == 'drupal_projects') {
 		// derive path from acronym field
-		// TODO test for filled one!!
+		// TODO test for user filled path here!!
 		$acronym = _project_to_acronym($node);
 		$node->path['alias'] = _project_slug($acronym);
 		$node->path['pathauto'] = 0;
@@ -216,7 +196,7 @@ function drupal_projects_node_presave($node) {
 	
 	if ($node->type == 'personal_profile') {
 		// derive path from name field
-		// TODO test for filled one!!
+		// TODO test for user filled one!!
 		$node->path['alias'] = _project_slug($node->title);
 		$node->path['pathauto'] = 0;
 		
@@ -279,13 +259,13 @@ function drupal_projects_node_presave($node) {
 function drupal_projects_shortcut_update($node) {
 	$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
 	$term_tid = _project_to_term_tid($node);
-	$new_title = $node->title;
+	$acronym = _project_to_acronym($node);
 	
 	$result = _project_get_shortcut_links($term_tid);
 	foreach ($result as $link) {
 		if ($link['link_path'] == 'admin/my-content/' . $term_tid) {
 			$link['options']    = unserialize($link['options']);
-			$link['link_title'] = $new_title;
+			$link['link_title'] = $acronym;
 			menu_link_save($link);
 		}
 	}
@@ -869,4 +849,10 @@ function _wrap_form_field(&$form, $field_name) {
 	);
 	$form['fieldsetted_' . $field_name][$field_name] = $form[$field_name];
 	unset($form[$field_name]);
+}
+function _is_managed_type($node_type) {
+	if ($node_type == 'drupal_projects')  return true;
+	if ($node_type == 'personal_profile') return true;
+	if ($node_type == 'ufal_tool')        return true;
+	return false;
 }
