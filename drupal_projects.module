@@ -66,7 +66,7 @@ function drupal_projects_init() {
 function drupal_projects_node_insert($node) {
 	$t = get_t();
 	
-	if ($node->type == 'drupal_projects' || $node->type == 'personal_profile' || $node->type == 'ufal_tool') {
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node->type)) {
 		// create a new menu for the project minisite
 		$menu = _project_to_menu_array($node);
 		if (!menu_load($menu['menu_name'])) {
@@ -103,15 +103,14 @@ function drupal_projects_node_insert($node) {
 
 /**
  * a node being inserted or updated.
- *  - vocabulary term
+ *  - project term in right vocabulary (projects/profiles/tools)
  *  - auto path
  *  - 
  */
 
 function drupal_projects_node_presave($node) {
 	$t = get_t();
-	
-	if ($node->type == 'drupal_projects') {
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node->type)) {
 		// derive path from acronym field
 		// TODO test for user filled path here!!
 		$acronym = _project_to_acronym($node);
@@ -119,28 +118,11 @@ function drupal_projects_node_presave($node) {
 		$node->path['pathauto'] = 0;
 		
 		// taxonomy classification
-		$vocabulary_id = variable_get('drupal_projects_vocabulary_id');
-		$vocabulary = taxonomy_vocabulary_load($vocabulary_id);
-		
-		if (isset($node->original->drupal_projects_project)) {
-			// update the taxonomy name
-			$term = _project_to_term($node->original);
-			$term->name = $t($node->title);
-			taxonomy_term_save($term);
+		if (isset($node->original) && _project_to_term_tid($node->original)) {
+			drupal_projects_term_update($node, $node->original);
 		} else {
-			$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
-			if (count($terms) > 0) {
-				// found existing
-				$newterm = array_shift($terms);
-			} else {
-				// add a taxonomy term
-				$newterm = new stdClass();
-				$newterm->name = $t($node->title);
-				$newterm->vid  = $vocabulary_id;
-				taxonomy_term_save($newterm);
-			}
-			// attach to taxonomy
-			$node->drupal_projects_project[$node->language][$newterm->tid] = (array) $newterm;
+			$project_term = drupal_projects_term_create($node);
+			_attach_node_to_project($node, $project_term);
 		}
 		
 		// update the menu for the project minisite
@@ -153,7 +135,6 @@ function drupal_projects_node_presave($node) {
 			}
 		}
 		
-		// BEWARE!
 		// if acronym has changed, so did project URI
 		// we have to update all subpage menu items
 		if (isset($node->original)) {
@@ -167,14 +148,13 @@ function drupal_projects_node_presave($node) {
 			}
 		}
 		
-		
 		// shortcut bar update
 		if (isset($node->original)) {
 			drupal_projects_shortcut_update($node);
 		}
 	}
 	
-	if ($node->type == 'drupal_projects_page' || $node->type == 'personal_profile_page') {
+	if (preg_match('/^(drupal_projects_page|personal_profile_page|ufal_tool_page)$/', $node->type)) {
 		// menu has to be expanded
 		$node->menu['expanded'] = 1;
 		
@@ -183,69 +163,6 @@ function drupal_projects_node_presave($node) {
 		$acronym = _project_to_acronym($project);
 		$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
 		$node->path['pathauto'] = 0;
-	}
-	
-	/* ---------------------------------- */
-	
-	if ($node->type == 'personal_profile') {
-		// derive path from name field
-		// TODO test for user filled one!!
-		$node->path['alias'] = _project_slug($node->title);
-		$node->path['pathauto'] = 0;
-		
-		// taxonomy classification
-		$vocabulary_id = variable_get('profiles_vocabulary_id');
-		$vocabulary = taxonomy_vocabulary_load($vocabulary_id);
-		
-		if (isset($node->original->field_profile)) {
-			// update the taxonomy name
-			$term = _project_to_term($node->original);
-			$term->name = $t($node->title);
-			taxonomy_term_save($term);
-		} else {
-			$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
-			if (count($terms) > 0) {
-				// found existing
-				$newterm = array_shift($terms);
-			} else {
-				// add a taxonomy term
-				$newterm = new stdClass();
-				$newterm->name = $t($node->title);
-				$newterm->vid  = $vocabulary_id;
-				taxonomy_term_save($newterm);
-			}
-			// attach to taxonomy
-			$node->field_profile[$node->language][$newterm->tid] = (array) $newterm;
-		}
-	
-		// update the menu for the project minisite
-		if (isset($node->original)) {
-			$menu = _project_to_menu_array($node->original);
-			if (menu_load($menu['menu_name'])) {
-				// new menu, but got same menu name
-				$menu = _project_to_menu_array($node);
-				menu_save($menu);
-			}
-		}
-	
-		// BEWARE!
-		// if acronym has changed, so did project URI
-		// we have to update all subpage menu items
-		if (isset($node->original)) {
-			$old_slug = _project_slug($node->original->title);
-			$new_slug = _project_slug($node->title);
-			$result = _project_get_url_aliases($node->original);
-			foreach ($result as $path) {
-				$pattern = '^' . $old_slug . '\/';
-				$path['alias'] = preg_replace("/$pattern/", $new_slug . '/', $path['alias']);
-				path_save($path);
-			}
-		}
-		
-		// shortcut bar update
-		if (isset($node->original)) {
-			drupal_projects_shortcut_update($node);
-		}
 	}
 }
 
@@ -264,6 +181,44 @@ function drupal_projects_shortcut_update($node) {
 	}
 	menu_cache_clear_all();
 }
+function drupal_projects_term_update($node, $original_node) {
+	$t = get_t();
+	// update the taxonomy name upon node change
+	$term = _project_to_term($original_node);
+	$term->name = $t($node->title);
+	taxonomy_term_save($term);
+}
+function drupal_projects_term_create($node) {
+	$t = get_t(); 
+	$vocabulary_id = _project_to_vocabulary_id($node);
+	$vocabulary    = taxonomy_vocabulary_load($vocabulary_id);
+	$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
+	if (count($terms) > 0) {
+		// found existing
+		$newterm = array_shift($terms);
+	} else {
+		// add a taxonomy term
+		$newterm = new stdClass();
+		$newterm->name = $t($node->title);
+		$newterm->vid  = $vocabulary_id;
+		taxonomy_term_save($newterm);
+	}
+	return $newterm;
+}
+function _attach_node_to_project($node, $project_term) {
+	// attach node to taxonomy
+	$tx = array(
+		'personal_profile' => 'field_profile',
+		'drupal_projects'  => 'drupal_projects_project',
+		'ufal_tool'        => 'field_project_term',
+	);
+	$project_field = @$tx[$node->type];
+	if (!$project_field) {
+		drupal_set_message('no project field defined for ' . $node->type, 'warning');
+	}
+	// attach
+	$node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
+} 
 
 /**
  * Implements hook_node_delete().
@@ -271,10 +226,9 @@ function drupal_projects_shortcut_update($node) {
 function drupal_projects_node_delete($node) {
 	$t = get_t();
 	
-	if ($node->type == 'drupal_projects' || $node->type == 'personal_profile') {
-		// find appropriate vocabulary:
-		$vid = $node->type == 'drupal_projects' ? variable_get('drupal_projects_vocabulary_id') : variable_get('profiles_vocabulary_id');
-		$vocabulary = taxonomy_vocabulary_load($vid);
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node->type)) {
+		$vocabulary_id = _project_to_vocabulary_id($node);
+		$vocabulary    = taxonomy_vocabulary_load($vocabulary_id);
 	
 		// delete a taxonomy term
 		$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
@@ -848,4 +802,16 @@ function _is_managed_type($node_type) {
 	if ($node_type == 'personal_profile') return true;
 	if ($node_type == 'ufal_tool')        return true;
 	return false;
+}
+function _project_to_vocabulary_id($node) {
+	$tx = array(
+		'drupal_projects'  => 'drupal_projects_vocabulary_id',
+		'personal_profile' => 'profiles_vocabulary_id',
+		'ufal_tool'       =>  'ufal_tool_vocabulary_id',
+	);
+	$var_name = @$tx[$node->type];
+	if (!$var_name) {
+		drupal_set_message('no vocabulary defined for ' . $node->type, 'warning');
+	} 
+	return variable_get($var_name);
 }
