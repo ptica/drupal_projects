@@ -717,7 +717,7 @@ function _term_slug($title) {
 function _project_to_term_tid($node) {
 	if (!empty($node)) {
 		$project_field = _get_project_attachment_field($node);
-		if ($project_ref = @$node->{$project_field}) {
+		if ($project_field && $project_ref = @$node->{$project_field}) {
 			$project_term = array_shift($project_ref[$node->language]);
 			return $project_term['tid'];
 		}
