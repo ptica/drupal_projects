@@ -315,6 +315,7 @@ function drupal_projects_custom_theme() {
 	if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
 		// we got a ufal tool (page)
 		menu_tree_set_path('main-menu', 'tools');
+		return 'drufal_project';
 		return 'drufal_tool';
 	}
 }
@@ -739,15 +740,6 @@ function _term_to_project($term) {
 		}
 	}
 	return $node;
-	//$nodes = taxonomy_select_nodes($term->tid);
-	//$node = node_load($nodes[0]);
-	//$term_url = drupal_lookup_path('alias', 'node/'.$node->nid);
-	
-	
-	// override the destination url
-	// to the project home page!
-	//$term_url = '';
-	
 }
 function _project_to_menu($node) {
 	$menu = _project_to_menu_array($node);
@@ -771,11 +763,20 @@ function _project_to_menu_name($project) {
 	return 'project-' . $project->nid . '-menu';
 }
 function _project_get_project_logo_uri($project) {
-	if (!isset($project->drupal_projects_image[$project->language][0]['uri'])) {
+	// switch by $project->type
+	$tx = array(
+		'ufal_tool'        => 'field_screenshot',
+		'drupal_projects'  => 'drupal_projects_image',
+		'personal_profile' => 'field_avatar',
+	);
+	$logo_field = @$tx[$project->type];
+	
+	if (!@isset($project->{$logo_field}[$project->language][0]['uri'])) {
 		// default logo images are not populated for just referenced nodes (ie. not for main content)
 		node_build_content($project);
 	}
-	return $project->drupal_projects_image[$project->language][0]['uri'];
+	
+	return $project->{$logo_field}[$project->language][0]['uri'];
 }
 function _project_to_acronym($project) {
 	if (isset($project->field_acronym[$project->language][0]['value'])) {
