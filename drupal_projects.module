@@ -233,7 +233,10 @@ function _get_project_attachment_field($node) {
 	);
 	$project_field = @$tx[$node->type];
 	if (!$project_field) {
-		drupal_set_message('no project field defined for ' . $node->type, 'warning');
+		// as we get called on every page request
+		// as part of hook_custom_theme call
+		// we do not report
+		//drupal_set_message('no project field defined for ' . $node->type, 'warning');
 	}
 	return $project_field;
 }
