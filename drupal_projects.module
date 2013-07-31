@@ -85,6 +85,7 @@ function drupal_projects_node_insert($node) {
 			menu_save($menu);
 			// allow this menu for relevant subpage content type
 			// otherwise you could put pages there
+			// TODO this is not deleted upon node delete!!!
 			$allowed_menus = variable_get('menu_options_'.$node->type.'_page');
 			$allowed_menus[]  = $menu['menu_name'];
 			variable_set('menu_options_'.$node->type.'_page', $allowed_menus);
@@ -314,7 +315,8 @@ function drupal_projects_custom_theme() {
 	}
 	if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
 		// we got a ufal tool (page)
-		menu_tree_set_path('main-menu', 'tools');
+		menu_tree_set_path('main-menu', drupal_get_normal_path('tools'));
+		return 'drufal';
 		return 'drufal_project';
 		return 'drufal_tool';
 	}
@@ -485,7 +487,8 @@ function drupal_projects_views_bulk_operations_form_alter(&$form, &$form_state, 
  * Wrap exposed filters in a fieldset. 
  */
 function drupal_projects_preprocess_views_view(&$vars) {
-	if ($vars['exposed']) {
+	global $theme_key;
+	if (preg_match('/admin/', $theme_key) && $vars['exposed']) {
 		drupal_add_js('misc/form.js');
 		drupal_add_js('misc/collapse.js');
 		// Default collapsed
@@ -765,7 +768,7 @@ function _project_to_menu_name($project) {
 function _project_get_project_logo_uri($project) {
 	// switch by $project->type
 	$tx = array(
-		'ufal_tool'        => 'field_screenshot',
+		'ufal_tool'        => 'drupal_projects_image',
 		'drupal_projects'  => 'drupal_projects_image',
 		'personal_profile' => 'field_avatar',
 	);
