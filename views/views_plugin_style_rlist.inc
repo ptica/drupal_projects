@@ -56,7 +56,7 @@ class views_plugin_style_rlist extends views_plugin_style_default {
 					$flats = explode(', ', $grouping);
 					foreach ($flats as $flat) {	
 						// Create the group if it does not exist yet.
-						if (empty($set[$grouping])) {
+						if (empty($set[$flat])) {
 							$set[$flat]['group'] = $flat;
 							$set[$flat]['rows'] = array();
 						}
@@ -90,7 +90,6 @@ class views_plugin_style_rlist extends views_plugin_style_default {
 		}
 		
 		// custom sort
-		flog_it(array_keys($sets), 'sets', 'views');
 		$groups = array('Head of the Institute', 'Professors', 'Senior Research Associates', 'Research Assistants', 'Technical Specialists', 'Secretary');
 		$ordered_sets = array();
 		foreach ($groups as $group) {
