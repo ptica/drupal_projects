@@ -9,6 +9,9 @@ dependencies[] = overlay
 core = 7.x
 files[] = drupal_projects.install
 files[] = drupal_projects.module
+# views style plugin
+files[] = views/drupal_projects.views.inc
+files[] = views/views_plugin_style_rlist.inc
 
 # project shortcuts need following patch applied
 # http://drupal.org/files/issues/shortcuts-query-params.3.patch
