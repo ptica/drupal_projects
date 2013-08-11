@@ -125,10 +125,13 @@ function drupal_projects_node_presave($node) {
 	$t = get_t();
 	if (_is_managed_project_type($node->type)) {
 		// derive path from acronym field
-		// TODO test for user filled path here!!
-		$acronym = _project_to_acronym($node);
-		$node->path['alias'] = _project_slug($acronym);
-		$node->path['pathauto'] = 0;
+		// TODO check for consequences of
+		// acronym != path['alias'] ie all calls to _project_to_acronym($node);
+		if (1 || empty($node->path['alias'])) {
+			$acronym = _project_to_acronym($node);
+			$node->path['alias'] = _project_slug($acronym);
+			$node->path['pathauto'] = 0;
+		}
 		
 		// taxonomy classification
 		if (isset($node->original) && _project_to_term_tid($node->original)) {
@@ -151,6 +154,7 @@ function drupal_projects_node_presave($node) {
 		// if acronym has changed, so did project URI
 		// we have to update all subpage menu items
 		if (isset($node->original)) {
+			// BEWARE slug could be different from acronym nom
 			$old_slug = _project_slug(_project_to_acronym($node->original));
 			$new_slug = _project_slug(_project_to_acronym($node));
 			$result = _project_get_url_aliases($node->original);
@@ -176,6 +180,38 @@ function drupal_projects_node_presave($node) {
 		$acronym = _project_to_acronym($project);
 		$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
 		$node->path['pathauto'] = 0;
+	}
+	
+	if (preg_match('/^(personal_profile)$/', $node->type)) {
+		// name with degrees defaults to node title
+		if (empty($node->field_name_with_degrees[$node->language])) {
+			$node->field_name_with_degrees[$node->language][0]['value'] = $node->title;
+		}
+		
+		//
+		$old_web_orig = @$node->original->field_old_web_address[$node->language][0]['value'];
+		$old_web_curr = @$node->field_old_web_address[$node->language][0]['value'];
+		if ($old_web_orig != $old_web_curr) {
+			module_load_include('module', 'redirect', 'redirect');
+			if ($old_web_orig) {
+				// exists && differs -> remove old ones
+				redirect_delete_by_path('node/' . $node->nid);
+			}
+			if ($old_web_curr) {
+				preg_match('/~[^\/]+/', $old_web_curr, $matches);
+				// create new one
+				$redirect = new stdClass();
+				$redirect->type = 'redirect';
+				$redirect->language = 'und';
+				$redirect->status_code = 0;
+				$redirect->source = $matches[0];
+				$redirect->source_options = array();
+				$redirect->redirect = 'node/' . $node->nid;
+				$redirect->redirect_options = array();
+				flog_it($redirect, 'redirect', 'redirects');
+				redirect_save($redirect);
+			}
+		}
 	}
 }
 
@@ -288,6 +324,15 @@ function drupal_projects_node_delete($node) {
 			// last shot
 			menu_delete($menu);
 			menu_cache_clear_all();
+		}
+	}
+	
+	if (preg_match('/^(personal_profile)$/', $node->type)) {
+		// delete redirects to current node
+		$old_web = @$node->field_old_web_address[$node->language][0]['value'];
+		if ($old_web) {
+			module_load_include('module', 'redirect', 'redirect');
+			redirect_delete_by_path('node/' . $node->nid);
 		}
 	}
 }
