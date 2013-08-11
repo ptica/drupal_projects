@@ -6,6 +6,7 @@ dependencies[] = taxonomy
 dependencies[] = workbench_access
 dependencies[] = shortcut
 dependencies[] = overlay
+dependencies[] = redirect
 core = 7.x
 files[] = drupal_projects.install
 files[] = drupal_projects.module
