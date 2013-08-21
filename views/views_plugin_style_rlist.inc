@@ -96,6 +96,7 @@ class views_plugin_style_rlist extends views_plugin_style_default {
 			if (isset($sets[$group])) $ordered_sets[$group] = $sets[$group];
 		}
 		
-		return $ordered_sets;
+		$return = empty($ordered_sets) ? $sets : $ordered_sets;
+		return $return;
 	}
 }
