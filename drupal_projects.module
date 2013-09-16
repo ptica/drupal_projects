@@ -178,8 +178,10 @@ function drupal_projects_node_presave($node) {
 		// derive path in form [project]/[page]
 		$project = _node_to_project($node);
 		$acronym = _project_to_acronym($project);
-		$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
-		$node->path['pathauto'] = 0;
+		if (empty($node->path['alias'])) {
+			$node->path['alias'] = _project_slug($acronym) . '/' . _project_slug($node->title);
+			$node->path['pathauto'] = 0;
+		}
 	}
 	
 	if (preg_match('/^(personal_profile)$/', $node->type)) {
@@ -791,7 +793,7 @@ function _term_to_project($term) {
 			break;
 		}
 	}
-	return $node;
+	return @$node;
 }
 function _project_to_menu($node) {
 	$menu = _project_to_menu_array($node);
