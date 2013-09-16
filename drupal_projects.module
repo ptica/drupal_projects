@@ -257,7 +257,9 @@ function drupal_projects_term_create($node) {
 function _attach_node_to_project($node, $project_term) {
 	// attach node to taxonomy term
 	$project_field = _get_project_attachment_field($node);
-	$node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
+	$node->{$project_field}['und'][$project_term->tid] = (array) $project_term;
+	// even after localization fiels use 'und'
+	// $node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
 }
 function _get_project_attachment_field($node) {
 	$tx = array(
@@ -771,7 +773,9 @@ function _project_to_term_tid($node) {
 	if (!empty($node)) {
 		$project_field = _get_project_attachment_field($node);
 		if ($project_field && $project_ref = @$node->{$project_field}) {
-			$project_term = array_shift($project_ref[$node->language]);
+			//$project_term = array_shift($project_ref[$node->language]);
+			// even after localization tags still added into 'und' language
+			$project_term = array_shift($project_ref['und']);
 			return $project_term['tid'];
 		}
 	}
@@ -847,14 +851,16 @@ function _project_get_url_aliases($project) {
 }
 function _wrap_form_field(&$form, $field_name) {
 	$form['fieldsetted_' . $field_name] = array(
-			'#title' => $form[$field_name][$form['language']['#value']]['#title'],
+			'#title' => $form[$field_name]['und']['#title'], // even after localization fields use 'und'
 			'#type' => 'fieldset',
 			'#collapsible' => TRUE,
 			'#collapsed' => TRUE,
 			'#weight' => $form[$field_name]['#weight'],
 	);
 	$form['fieldsetted_' . $field_name][$field_name] = $form[$field_name];
-	unset($form[$field_name]);
+	$form[$field_name]['#access'] = FALSE;
+	// localization needs to still find it there
+	//unset($form[$field_name]);
 }
 function _project_to_vocabulary_id($node) {
 	$tx = array(
@@ -883,3 +889,13 @@ function drupal_projects_views_api() {
 	);
 }
 
+/**
+ * 
+ */
+function computed_field_field_unix_name_compute(&$entity_field, $entity_type, $entity, $field, $instance, $langcode, $items) {
+	$old_address = array_pop(array_pop(field_get_items($entity_type, $entity, 'field_old_web_address')));
+	preg_match('/~[^\/]+/', $old_address, $matches);
+	if (isset($matches[1])) {
+		$entity_field[0]['value'] = $matches[1];
+	}	
+}
