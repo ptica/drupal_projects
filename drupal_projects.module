@@ -8,6 +8,8 @@
  *  - personal_profile_page
  *  - ufal_tool
  *  - ufal_tool_page
+ *  - ufal_course
+ *  - ufal_course_page
  *  
  *  content types
  */
@@ -171,7 +173,7 @@ function drupal_projects_node_presave($node) {
 		}
 	}
 	
-	if (preg_match('/^(drupal_projects_page|personal_profile_page|ufal_tool_page)$/', $node->type)) {
+	if (preg_match('/^(drupal_projects_page|personal_profile_page|ufal_tool_page|ufal_course_page)$/', $node->type)) {
 		// menu has to be expanded
 		$node->menu['expanded'] = 1;
 		
@@ -259,16 +261,20 @@ function drupal_projects_term_create($node) {
 function _attach_node_to_project($node, $project_term) {
 	// attach node to taxonomy term
 	$project_field = _get_project_attachment_field($node);
-	$node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
+	$node->{$project_field}['und'][$project_term->tid] = (array) $project_term;
+	// even after localization fiels use 'und'
+	// $node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
 }
 function _get_project_attachment_field($node) {
 	$tx = array(
 		'personal_profile' => 'field_profile',
 		'drupal_projects'  => 'drupal_projects_project',
 		'ufal_tool'        => 'field_project_term',
+		'ufal_course'      => 'field_project_term',
 		'personal_profile_page' => 'field_profile',
 		'drupal_projects_page'  => 'drupal_projects_project',
 		'ufal_tool_page'        => 'field_project_term',
+		'ufal_course_page'      => 'field_project_term',
 	);
 	$project_field = @$tx[$node->type];
 	if (!$project_field) {
@@ -308,7 +314,7 @@ function drupal_projects_node_delete($node) {
 		// delete menu for the project minisite
 		$menu = _project_to_menu($node);
 		if ($menu) {
-			// delete all project/profile/tools subpages
+			// delete all project/profile/tools/course subpages
 			$project_field = _get_project_attachment_field($node);
 			$bundle = $node->type . '_page';
 			
@@ -351,21 +357,28 @@ function drupal_projects_custom_theme() {
 	$node = node_load(arg(1));
 	$term = _project_to_term($node);
 	
-	if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
-		// we got a project (page)
-		return 'drufal_project';
-	}
-	if (@$term->vid == variable_get('profiles_vocabulary_id')) {
-		// we got a personal profile (page)
-		menu_tree_set_path('main-menu', 'people');
-		return 'drufal_profile';
-	}
-	if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
-		// we got a ufal tool (page)
-		menu_tree_set_path('main-menu', drupal_get_normal_path('tools'));
-		return 'drufal';
-		return 'drufal_project';
-		return 'drufal_tool';
+	if (isset($term->vid)) {
+		if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
+			// we got a project (page)
+			return 'drufal_project';
+		}
+		if (@$term->vid == variable_get('profiles_vocabulary_id')) {
+			// we got a personal profile (page)
+			menu_tree_set_path('main-menu', 'people');
+			return 'drufal_profile';
+		}
+		if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
+			// we got a ufal tool (page)
+			menu_tree_set_path('main-menu', drupal_get_normal_path('tools'));
+			return 'drufal';
+			return 'drufal_project';
+			return 'drufal_tool';
+		}
+		if (@$term->vid == variable_get('ufal_course_vocabulary_id')) {
+			// we got a ufal course (page)
+			menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
+			return 'drufal_project';
+		}
 	}
 }
 
@@ -442,13 +455,14 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
  * custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
-	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)_page_node_form$/', $form_id)) {
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)_page_node_form$/', $form_id)) {
 		// Subpage
 		$lang = $form['language']['#value'];
 		$tx = array(
 			'drupal_projects_page_node_form'  => 'drupal_projects_project',
 			'personal_profile_page_node_form' => 'field_profile',
 			'ufal_tool_page_node_form'        => 'field_project_term',
+			'ufal_course_page_node_form'      => 'field_project_term',
 		);
 		$project_field = @$tx[$form_id];
 		
@@ -505,6 +519,10 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	}
 	if ($form_id == 'ufal_tool_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
 		// create Ufal Tool
+		$form['field_project_term']['#access'] = false;
+	}
+	if ($form_id == 'ufal_course_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
+		// create Ufal Course
 		$form['field_project_term']['#access'] = false;
 	}
 }
@@ -608,6 +626,10 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 				_add_local_task($data, t('Add page to tool site'), 'node/add/ufal-tool-page', "/$project_tid");
 				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project));
 			}
+			if ($project->type == 'ufal_course') {
+				_add_local_task($data, t('Add page to course site'), 'node/add/ufal-course-page', "/$project_tid");
+				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project));
+			}
 			
 			break;
 	}
@@ -640,6 +662,11 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	// turn the configure link into 'new project link'
 	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ New project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
+	
+	//
+	$toolbar['toolbar_drawer'][0]['configure4'] = $toolbar['toolbar_drawer'][0]['configure'];
+	$toolbar['toolbar_drawer'][0]['configure4']['#title'] = t('+ New course');
+	$toolbar['toolbar_drawer'][0]['configure4']['#href']  = 'node/add/ufal-course';
 	
 	// another link there
 	$toolbar['toolbar_drawer'][0]['configure3'] = $toolbar['toolbar_drawer'][0]['configure'];
@@ -773,7 +800,9 @@ function _project_to_term_tid($node) {
 	if (!empty($node)) {
 		$project_field = _get_project_attachment_field($node);
 		if ($project_field && $project_ref = @$node->{$project_field}) {
-			$project_term = array_shift($project_ref[$node->language]);
+			//$project_term = array_shift($project_ref[$node->language]);
+			// even after localization tags still added into 'und' language
+			$project_term = array_shift($project_ref['und']);
 			return $project_term['tid'];
 		}
 	}
@@ -820,6 +849,7 @@ function _project_get_project_logo_uri($project) {
 	// switch by $project->type
 	$tx = array(
 		'ufal_tool'        => 'drupal_projects_image',
+		'ufal_course'      => 'drupal_projects_image',
 		'drupal_projects'  => 'drupal_projects_image',
 		'personal_profile' => 'field_avatar',
 	);
@@ -849,20 +879,23 @@ function _project_get_url_aliases($project) {
 }
 function _wrap_form_field(&$form, $field_name) {
 	$form['fieldsetted_' . $field_name] = array(
-			'#title' => $form[$field_name][$form['language']['#value']]['#title'],
+			'#title' => $form[$field_name]['und']['#title'], // even after localization fields use 'und'
 			'#type' => 'fieldset',
 			'#collapsible' => TRUE,
 			'#collapsed' => TRUE,
 			'#weight' => $form[$field_name]['#weight'],
 	);
 	$form['fieldsetted_' . $field_name][$field_name] = $form[$field_name];
-	unset($form[$field_name]);
+	$form[$field_name]['#access'] = FALSE;
+	// localization needs to still find it there
+	//unset($form[$field_name]);
 }
 function _project_to_vocabulary_id($node) {
 	$tx = array(
 		'drupal_projects'  => 'drupal_projects_vocabulary_id',
 		'personal_profile' => 'profiles_vocabulary_id',
-		'ufal_tool'       =>  'ufal_tool_vocabulary_id',
+		'ufal_tool'        => 'ufal_tool_vocabulary_id',
+		'ufal_course'      => 'ufal_course_vocabulary_id',
 	);
 	$var_name = @$tx[$node->type];
 	if (!$var_name) {
@@ -871,7 +904,7 @@ function _project_to_vocabulary_id($node) {
 	return variable_get($var_name);
 }
 function _is_managed_project_type($node_type) {
-	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool)$/', $node_type)) { return true; }
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)$/', $node_type)) { return true; }
 	return false;
 }
 
@@ -885,3 +918,13 @@ function drupal_projects_views_api() {
 	);
 }
 
+/**
+ * 
+ */
+function computed_field_field_unix_name_compute(&$entity_field, $entity_type, $entity, $field, $instance, $langcode, $items) {
+	$old_address = array_pop(array_pop(field_get_items($entity_type, $entity, 'field_old_web_address')));
+	preg_match('/~[^\/]+/', $old_address, $matches);
+	if (isset($matches[1])) {
+		$entity_field[0]['value'] = $matches[1];
+	}	
+}
