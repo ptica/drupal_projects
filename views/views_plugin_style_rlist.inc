@@ -88,12 +88,21 @@ class views_plugin_style_rlist extends views_plugin_style_default {
 			}
 			$sets = $old_style_sets;
 		}
-		
+
 		// custom sort
 		$groups = array('Head of the Institute', 'Professors', 'Senior Research Associates', 'Research Assistants', 'Technical Specialists', 'Secretary');
 		$ordered_sets = array();
 		foreach ($groups as $group) {
 			if (isset($sets[$group])) $ordered_sets[$group] = $sets[$group];
+		}
+
+		// RAs & PhDs merge
+		if (isset($sets['Ph.D. Students']['rows'])) {
+			foreach ($sets['Ph.D. Students']['rows'] as $i => $item) {
+				$ordered_sets['Research Assistants']['rows'][$i] = $item;
+			}
+			ksort($ordered_sets['Research Assistants']['rows']);
+			$ordered_sets['Research Assistants']['group'] .= ' and Ph.D. Students';
 		}
 		
 		$return = empty($ordered_sets) ? $sets : $ordered_sets;
