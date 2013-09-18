@@ -377,7 +377,8 @@ function drupal_projects_custom_theme() {
 		if (@$term->vid == variable_get('ufal_course_vocabulary_id')) {
 			// we got a ufal course (page)
 			menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
-			return 'drufal_project';
+			return 'drufal';
+			return 'drufal_course';
 		}
 	}
 }
@@ -886,9 +887,9 @@ function _wrap_form_field(&$form, $field_name) {
 			'#weight' => $form[$field_name]['#weight'],
 	);
 	$form['fieldsetted_' . $field_name][$field_name] = $form[$field_name];
-	$form[$field_name]['#access'] = FALSE;
+	//$form[$field_name]['#access'] = FALSE; // this will make them not save!!!!
 	// localization needs to still find it there
-	//unset($form[$field_name]);
+	unset($form[$field_name]);
 }
 function _project_to_vocabulary_id($node) {
 	$tx = array(
@@ -922,7 +923,7 @@ function drupal_projects_views_api() {
  * 
  */
 function computed_field_field_unix_name_compute(&$entity_field, $entity_type, $entity, $field, $instance, $langcode, $items) {
-	$old_address = array_pop(array_pop(field_get_items($entity_type, $entity, 'field_old_web_address')));
+	$old_address = @array_pop(array_pop(field_get_items($entity_type, $entity, 'field_old_web_address')));
 	preg_match('/~[^\/]+/', $old_address, $matches);
 	if (isset($matches[1])) {
 		$entity_field[0]['value'] = $matches[1];
