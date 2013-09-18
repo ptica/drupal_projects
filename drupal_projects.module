@@ -270,11 +270,11 @@ function _get_project_attachment_field($node) {
 		'personal_profile' => 'field_profile',
 		'drupal_projects'  => 'drupal_projects_project',
 		'ufal_tool'        => 'field_project_term',
-		'ufal_course'      => 'field_project_term',
+		'ufal_course'      => 'field_course_term',
 		'personal_profile_page' => 'field_profile',
 		'drupal_projects_page'  => 'drupal_projects_project',
 		'ufal_tool_page'        => 'field_project_term',
-		'ufal_course_page'      => 'field_project_term',
+		'ufal_course_page'      => 'field_course_term',
 	);
 	$project_field = @$tx[$node->type];
 	if (!$project_field) {
@@ -463,7 +463,7 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 			'drupal_projects_page_node_form'  => 'drupal_projects_project',
 			'personal_profile_page_node_form' => 'field_profile',
 			'ufal_tool_page_node_form'        => 'field_project_term',
-			'ufal_course_page_node_form'      => 'field_project_term',
+			'ufal_course_page_node_form'      => 'field_course_term',
 		);
 		$project_field = @$tx[$form_id];
 		
@@ -524,7 +524,7 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	}
 	if ($form_id == 'ufal_course_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
 		// create Ufal Course
-		$form['field_project_term']['#access'] = false;
+		$form['field_course_term']['#access'] = false;
 	}
 }
 function _custom_redirect_after_delete($form, &$form_state) {
