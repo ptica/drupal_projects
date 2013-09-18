@@ -765,7 +765,7 @@ function drupal_projects_translated_menu_link_alter(&$link) {
 		$term    = taxonomy_term_load($project_tid);
 		$project = _term_to_project($term);
 		// Now check the user account.
-		if (!node_access('update', $project, $account)) {
+		if (!node_access('update', $project, $account) || $account->uid == 1) {
 			$link['hidden'] = 1;
 		}
 	}
