@@ -522,7 +522,7 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		// create Ufal Tool
 		$form['field_project_term']['#access'] = false;
 	}
-	if ($form_id == 'ufal_course_node_form' && (arg(1) == 'add' || arg(2) == 'edit')) {
+	if ($form_id == 'ufal_course_node_form' && (arg(1) == 'add' || arg(2) == 'edit' || arg(1) == 'ajax')) {
 		// create Ufal Course
 		$form['field_course_term']['#access'] = false;
 	}
