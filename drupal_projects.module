@@ -847,12 +847,19 @@ function _project_to_menu($node) {
 }
 function _project_to_menu_array($project) {
 	$t = get_t();
+	$title = @$project->title;
+	// try title_field
+	if (empty($title)) {
+		$title = @$project->title_field['und'][0]['value'];
+		flog_it($project, 'title_field', 'menu_array');
+	}	
 	$menu_array = array(
 		'menu_name'   => _project_to_menu_name($project),
-		'title'       =>  $t($project->title),
-		'description' => 'This menu defines the core structure for the subsite '.$project->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		'title'       =>  $t($title),
+		'description' => 'This menu defines the core structure for the subsite '.$title.'. This is deleted along with any associated menu items when the subsite is deleted.',
 		'module'      => 'drupal_projects',
 	);
+	flog_it($menu_array, 'menu_array', 'menu_array');
 	return $menu_array;
 }
 function _project_to_menu_name($project) {
