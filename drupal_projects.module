@@ -777,6 +777,7 @@ function drupal_projects_translated_menu_link_alter(&$link) {
 
 function _node_to_project($node) {
 	$term    = _project_to_term($node);
+	if (empty($term)) return false;
 	$project = _term_to_project($term);
 	return $project; 
 }
@@ -835,12 +836,19 @@ function _project_to_menu($node) {
 }
 function _project_to_menu_array($project) {
 	$t = get_t();
+	$title = @$project->title;
+	// try title_field
+	if (empty($title)) {
+		$title = @$project->title_field['und'][0]['value'];
+		flog_it($project, 'title_field', 'menu_array');
+	}	
 	$menu_array = array(
 		'menu_name'   => _project_to_menu_name($project),
-		'title'       =>  $t($project->title),
-		'description' => 'This menu defines the core structure for the subsite '.$project->title.'. This is deleted along with any associated menu items when the subsite is deleted.',
+		'title'       =>  $t($title),
+		'description' => 'This menu defines the core structure for the subsite '.$title.'. This is deleted along with any associated menu items when the subsite is deleted.',
 		'module'      => 'drupal_projects',
 	);
+	flog_it($menu_array, 'menu_array', 'menu_array');
 	return $menu_array;
 }
 function _project_to_menu_name($project) {
@@ -864,8 +872,11 @@ function _project_get_project_logo_uri($project) {
 	return $project->{$logo_field}[$project->language][0]['uri'];
 }
 function _project_to_acronym($project) {
-	if (isset($project->field_acronym[$project->language][0]['value'])) {
-		return $project->field_acronym[$project->language][0]['value'];
+	if (isset($project->field_sis_code['und'][0]['value'])) {
+		return $project->field_sis_code['und'][0]['value'];
+	}
+	if (isset($project->field_acronym['und'][0]['value'])) {
+		return $project->field_acronym['und'][0]['value'];
 	}
 	return $project->title;
 }
