@@ -151,7 +151,7 @@ function drupal_projects_node_presave($node) {
 			$new_alias = $node->path['alias'];
 			$result = _project_get_url_aliases($old_alias);
 			foreach ($result as $path) {
-				$pattern = '^' . $old_alias . '\/';
+				$pattern = '^' . str_replace('/', '\/', $old_alias) . '\/';
 				$path['alias'] = preg_replace("/$pattern/", $new_alias . '/', $path['alias']);
 				path_save($path);
 			}
