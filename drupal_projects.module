@@ -458,7 +458,8 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)_page_node_form$/', $form_id)) {
 		// Subpage
-		$lang = $form['language']['#value'];
+		//$lang = $form['language']['#value']; // lang is und
+		$lang = 'und';
 		$tx = array(
 			'drupal_projects_page_node_form'  => 'drupal_projects_project',
 			'personal_profile_page_node_form' => 'field_profile',
@@ -661,17 +662,22 @@ function drupal_projects_page_alter(&$page) {
 }
 function drupal_projects_toolbar_pre_render($toolbar) {
 	// turn the configure link into 'new project link'
-	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ New project');
+	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ Project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
+	
+	$toolbar['toolbar_drawer'][0]['configure5'] = $toolbar['toolbar_drawer'][0]['configure'];
+	$toolbar['toolbar_drawer'][0]['configure5']['#title'] = t('+ Event');
+	$toolbar['toolbar_drawer'][0]['configure5']['#href']  = 'node/add/ufal-course';
+	
 	
 	//
 	$toolbar['toolbar_drawer'][0]['configure4'] = $toolbar['toolbar_drawer'][0]['configure'];
-	$toolbar['toolbar_drawer'][0]['configure4']['#title'] = t('+ New course');
+	$toolbar['toolbar_drawer'][0]['configure4']['#title'] = t('+ Course');
 	$toolbar['toolbar_drawer'][0]['configure4']['#href']  = 'node/add/ufal-course';
 	
 	// another link there
 	$toolbar['toolbar_drawer'][0]['configure3'] = $toolbar['toolbar_drawer'][0]['configure'];
-	$toolbar['toolbar_drawer'][0]['configure3']['#title'] = t('+ New tool');
+	$toolbar['toolbar_drawer'][0]['configure3']['#title'] = t('+ Tool');
 	$toolbar['toolbar_drawer'][0]['configure3']['#href']  = 'node/add/ufal-tool';
 	
 	$toolbar['toolbar_drawer'][0]['configure2'] = $toolbar['toolbar_drawer'][0]['configure'];
@@ -775,8 +781,14 @@ function drupal_projects_translated_menu_link_alter(&$link) {
  * TODO namespace them? move to separate file?
  */
 
+function _project_get_alias($project_node) {
+	//return $project_node->path['alias'];
+	return drupal_get_path_alias('node/' . $project_node->nid);
+}
+
 function _node_to_project($node) {
 	$term    = _project_to_term($node);
+	if (empty($term)) return false;
 	$project = _term_to_project($term);
 	return $project; 
 }
@@ -856,16 +868,19 @@ function _project_get_project_logo_uri($project) {
 	);
 	$logo_field = @$tx[$project->type];
 	
-	if (!@isset($project->{$logo_field}[$project->language][0]['uri'])) {
+	if (!@isset($project->{$logo_field}['und'][0]['uri'])) {
 		// default logo images are not populated for just referenced nodes (ie. not for main content)
 		node_build_content($project);
 	}
 	
-	return $project->{$logo_field}[$project->language][0]['uri'];
+	return $project->{$logo_field}['und'][0]['uri'];
 }
 function _project_to_acronym($project) {
-	if (isset($project->field_acronym[$project->language][0]['value'])) {
-		return $project->field_acronym[$project->language][0]['value'];
+	if (isset($project->field_sis_code['und'][0]['value'])) {
+		return $project->field_sis_code['und'][0]['value'];
+	}
+	if (isset($project->field_acronym['und'][0]['value'])) {
+		return $project->field_acronym['und'][0]['value'];
 	}
 	return $project->title;
 }
