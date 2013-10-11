@@ -10,6 +10,7 @@
  *  - ufal_tool_page
  *  - ufal_course
  *  - ufal_course_page
+ *  - ufal_grant
  *  
  *  content types
  */
@@ -259,6 +260,7 @@ function _get_project_attachment_field($node) {
 		'drupal_projects'  => 'drupal_projects_project',
 		'ufal_tool'        => 'field_project_term',
 		'ufal_course'      => 'field_course_term',
+		'ufal_grant'       => 'field_grant_term',
 		'personal_profile_page' => 'field_profile',
 		'drupal_projects_page'  => 'drupal_projects_project',
 		'ufal_tool_page'        => 'field_project_term',
@@ -514,6 +516,10 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'ufal_course_node_form' && (arg(1) == 'add' || arg(2) == 'edit' || arg(1) == 'ajax')) {
 		// create Ufal Course
 		$form['field_course_term']['#access'] = false;
+	}
+	if ($form_id == 'ufal_grant_node_form' && (arg(1) == 'add' || arg(2) == 'edit' || arg(1) == 'ajax')) {
+		// create Ufal Grant
+		$form['field_grant_term']['#access'] = false;
 	}
 }
 function _custom_redirect_after_delete($form, &$form_state) {
@@ -859,6 +865,7 @@ function _project_get_project_logo_uri($project) {
 	$tx = array(
 		'ufal_tool'        => 'drupal_projects_image',
 		'ufal_course'      => 'drupal_projects_image',
+		'ufal_grant'       => 'drupal_projects_image',
 		'drupal_projects'  => 'drupal_projects_image',
 		'personal_profile' => 'field_avatar',
 	);
@@ -908,6 +915,7 @@ function _project_to_vocabulary_id($node) {
 		'personal_profile' => 'profiles_vocabulary_id',
 		'ufal_tool'        => 'ufal_tool_vocabulary_id',
 		'ufal_course'      => 'ufal_course_vocabulary_id',
+		'ufal_grant'       => 'ufal_grant_vocabulary_id',
 	);
 	$var_name = @$tx[$node->type];
 	if (!$var_name) {
@@ -916,7 +924,7 @@ function _project_to_vocabulary_id($node) {
 	return variable_get($var_name);
 }
 function _is_managed_project_type($node_type) {
-	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)$/', $node_type)) { return true; }
+	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course|ufal_grant)$/', $node_type)) { return true; }
 	return false;
 }
 
