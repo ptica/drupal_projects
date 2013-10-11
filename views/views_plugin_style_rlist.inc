@@ -104,6 +104,9 @@ class views_plugin_style_rlist extends views_plugin_style_default {
 			ksort($ordered_sets['Research Assistants']['rows']);
 			$ordered_sets['Research Assistants']['group'] .= ' and Ph.D. Students';
 		}
+		// oh my: dont know how to exclude Teaching group right now:
+		// should be done in views filter 
+		if (isset($sets['<a href="/tag/teaching">Teaching</a>'])) { unset($sets['<a href="/tag/teaching">Teaching</a>']); }
 		
 		$return = empty($ordered_sets) ? $sets : $ordered_sets;
 		return $return;

@@ -59,9 +59,8 @@ function drupal_projects_init() {
 		$node = menu_get_object();
 		
 		if (!empty($node) && $node->type == 'drupal_projects') {
-			$acronym = _project_to_acronym($node);
-			$slug = _project_slug($acronym);
-			$path = $slug . '/';
+			$alias = _project_get_alias($node);
+			$path = $alias . '/';
 			// try to avoid redirect loop
 			if (strpos($_SERVER['REQUEST_URI'], $path) === false) {
 				return drupal_goto($path, $options = array(), $http_response_code = 301);
