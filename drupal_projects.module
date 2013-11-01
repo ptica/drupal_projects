@@ -348,7 +348,12 @@ function drupal_projects_custom_theme() {
 	$term = _project_to_term($node);
 	
 	if (isset($term->vid)) {
+		if (@$term->vid == variable_get('ufal_grant_vocabulary_id')) {
+			menu_tree_set_path('main-menu', drupal_get_normal_path('grants'));
+			return 'drufal';
+		}
 		if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
+			menu_tree_set_path('main-menu', drupal_get_normal_path('projects'));
 			// we got a project (page)
 			return 'drufal_project';
 		}
