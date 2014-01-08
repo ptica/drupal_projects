@@ -353,9 +353,15 @@ function drupal_projects_custom_theme() {
 			return 'drufal';
 		}
 		if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
-			menu_tree_set_path('main-menu', drupal_get_normal_path('projects'));
 			// we got a project (page)
-			return 'drufal_project';
+			$project = _term_to_project($term);
+			$own_menu = !@$project->field_suppress_own_menu['und'][0]['value'];
+			if ($own_menu) {
+				menu_tree_set_path('main-menu', drupal_get_normal_path('projects'));
+				return 'drufal_project';
+			} else {
+				return 'drufal';
+			}
 		}
 		if (@$term->vid == variable_get('profiles_vocabulary_id')) {
 			// we got a personal profile (page)
@@ -476,7 +482,8 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		$project = _term_to_project($term);
 		$menu_name = _project_to_menu_name($project);
 		$pattern = '^' . $menu_name;
-		foreach ($form['menu']['link']['parent']['#options'] as $key => $option) {
+		$suppress_own_menu = @$project->field_suppress_own_menu['und'][0]['value'];
+		if (!$suppress_own_menu) foreach ($form['menu']['link']['parent']['#options'] as $key => $option) {
 			if (!preg_match("/$pattern/", $key)) {
 				unset($form['menu']['link']['parent']['#options'][$key]);
 			}
@@ -734,9 +741,25 @@ function drupal_projects_menu() {
 			'file' => 'workbench_access.admin.inc',
 			'file path' => drupal_get_path('module', 'workbench_access'),
 	);
+	$items['node/%/related'] = array(
+			'title' => 'Project',
+			'description' => 'Index of related pages',
+			'access arguments' => array('access workbench'),
+			'page callback' => 'drupal_projects_project_index_redirect',
+			'page arguments' => array(1),
+			'type' => MENU_LOCAL_TASK,
+			'weight' => -1,
+	);
 	
 	return $items;
 }
+
+function drupal_projects_project_index_redirect($nid) {
+	$node = node_load($nid);
+	$term_tid = _project_to_term_tid($node);
+	drupal_goto("admin/my-content/$term_tid");
+}
+
 function drupal_projects_editors_menu_access() {
 	$args = func_get_args();
 	$project_tid = array_pop($args);
