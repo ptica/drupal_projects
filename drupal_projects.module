@@ -671,6 +671,10 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ Project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
 	
+	$toolbar['toolbar_drawer'][0]['configure7'] = $toolbar['toolbar_drawer'][0]['configure'];
+	$toolbar['toolbar_drawer'][0]['configure7']['#title'] = t('+ Event');
+	$toolbar['toolbar_drawer'][0]['configure7']['#href']  = 'node/add/event';
+	
 	$toolbar['toolbar_drawer'][0]['configure6'] = $toolbar['toolbar_drawer'][0]['configure'];
 	$toolbar['toolbar_drawer'][0]['configure6']['#title'] = t('+ Grant');
 	$toolbar['toolbar_drawer'][0]['configure6']['#href']  = 'node/add/ufal-grant';
@@ -853,19 +857,41 @@ function _project_to_term($node) {
 	$term = taxonomy_term_load($tid);
 	return $term;
 }
+/**
+ * tricky, the taxonomy seems to be a bad choice to sort nodes into projects
+ * so till we switch to simple entity reference
+ * at least try to speed it a bit by a query for node with smallest nid
+ * (as the main node has to be created before any subpages, and deleting the main node deletes all subpages)
+ * and by omitting the $query->condition('status', NODE_PUBLISHED); in order
+ * to obtain own unpublished projects
+ */
 function _term_to_project($term) {
-	// get all projects filled under this term
-	// TODO it fails as it uses term_index table that indexes just published nodes
-	// jeez
-	$nodes = node_load_multiple(taxonomy_select_nodes($term->tid, $pager=false));
-	// TODO BEWARE do not load all of them, filter them somehow!
-	foreach ($nodes as $node) {
-		if (_is_managed_project_type($node->type)) {
-			break;
-		}
+	if (empty($term)) return false;
+	$nid = _term_to_project_finder($term->tid);
+	if ($nid === false) return false;
+	$node = node_load($nid);
+	if (_is_managed_project_type($node->type)) {
+		return $node;
 	}
-	return @$node;
+	return false;
 }
+/* adapted code from taxonomy_select_nodes that we used before */
+function _term_to_project_finder($tid) {
+	if (!variable_get('taxonomy_maintain_index_table', TRUE)) {
+		return array();
+	}
+	$query = db_select('taxonomy_index', 't');
+	$query->addTag('node_access');
+	$query->condition('tid', $tid);
+	$query->addField('t', 'nid');
+	$query->addField('t', 'tid');
+	// sort by nid ascending as the managed project type has to be created first
+	// and then subpages are added
+	$query->orderBy('t.nid', 'ASC');
+	$query->range(0, 1);
+	return $query->execute()->fetchField();
+}
+
 function _project_to_menu($node) {
 	$menu = _project_to_menu_array($node);
 	if (menu_load($menu['menu_name'])) {
