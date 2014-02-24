@@ -673,7 +673,7 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	
 	$toolbar['toolbar_drawer'][0]['configure7'] = $toolbar['toolbar_drawer'][0]['configure'];
 	$toolbar['toolbar_drawer'][0]['configure7']['#title'] = t('+ Event');
-	$toolbar['toolbar_drawer'][0]['configure7']['#href']  = 'node/add/event';
+	$toolbar['toolbar_drawer'][0]['configure7']['#href']  = 'node/add/ufal-event';
 	
 	$toolbar['toolbar_drawer'][0]['configure6'] = $toolbar['toolbar_drawer'][0]['configure'];
 	$toolbar['toolbar_drawer'][0]['configure6']['#title'] = t('+ Grant');
