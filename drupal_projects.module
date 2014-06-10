@@ -57,13 +57,29 @@ function drupal_projects_init() {
 	 * so relative links work as expected (ie. relative to the project url)
 	 */
 	if (!path_is_admin(current_path())) {
+
 		$node = menu_get_object();
 		
 		if (!empty($node) && $node->type == 'drupal_projects') {
+			// causes linkchecker discrepances ;(
+			// 5.5. so we actually need to do the opposite, so links are the same as we check them
+			// but avoid the root page ('/')
+			if (preg_match('/.\/$/', $_SERVER['REQUEST_URI'])) {
+				$path = rtrim($_SERVER['REQUEST_URI'], '/');
+				$path = ltrim($path, '/');
+				return drupal_goto($path, $options = array(), $http_response_code = 301);
+			}	
+			// DISABLED NOW;
+			return;
+
+
+
 			$alias = _project_get_alias($node);
-			$path = $alias . '/';
+			//$path = $alias . '/';
+			$path = preg_replace('/\/$/', '', $alias);
 			// try to avoid redirect loop
-			if (strpos($_SERVER['REQUEST_URI'], $path) === false) {
+			//if (strpos($_SERVER['REQUEST_URI'], $path) === false) {
+			if ($path !== $alias) {
 				return drupal_goto($path, $options = array(), $http_response_code = 301);
 			}
 		}
@@ -340,8 +356,30 @@ function drupal_projects_node_delete($node) {
  */
 function drupal_projects_custom_theme() {
 	// default theme for admin area
-	if (path_is_admin(current_path())) { return; }
-	if (preg_match('/user\/\d+/', current_path())) { return; }
+	$current_path = current_path();
+	$request_path = request_path();
+	if (path_is_admin($current_path)) { return; }
+	if (preg_match('/user\/\d+/', $current_path)) { return; }
+	if (preg_match('/^events\/.*/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('events'));
+		return 'drufal';
+	}
+	if (preg_match('/^data.*/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('data'));
+		return 'drufal';
+	}
+	if (preg_match('/^projects.*/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('projects'));
+		return 'drufal';
+	}
+	if (preg_match('/^(teaching.*|courses)/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
+		return 'drufal';
+	}
+	if (preg_match('/^events.*/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('events'));
+		return 'drufal';
+	}
 
 	// find out if the current page is part of projects hierarchy
 	$node = node_load(arg(1));
@@ -352,7 +390,7 @@ function drupal_projects_custom_theme() {
 			menu_tree_set_path('main-menu', drupal_get_normal_path('grants'));
 			return 'drufal';
 		}
-		if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
+		else if (@$term->vid == variable_get('drupal_projects_vocabulary_id')) {
 			// we got a project (page)
 			$project = _term_to_project($term);
 			$own_menu = !@$project->field_suppress_own_menu['und'][0]['value'];
@@ -363,19 +401,19 @@ function drupal_projects_custom_theme() {
 				return 'drufal';
 			}
 		}
-		if (@$term->vid == variable_get('profiles_vocabulary_id')) {
+		else if (@$term->vid == variable_get('profiles_vocabulary_id')) {
 			// we got a personal profile (page)
 			menu_tree_set_path('main-menu', 'people');
 			return 'drufal_profile';
 		}
-		if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
+		else if (@$term->vid == variable_get('ufal_tool_vocabulary_id')) {
 			// we got a ufal tool (page)
 			menu_tree_set_path('main-menu', drupal_get_normal_path('tools'));
 			return 'drufal';
 			return 'drufal_project';
 			return 'drufal_tool';
 		}
-		if (@$term->vid == variable_get('ufal_course_vocabulary_id')) {
+		else if (@$term->vid == variable_get('ufal_course_vocabulary_id')) {
 			// we got a ufal course (page)
 			menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
 			return 'drufal';
@@ -667,6 +705,7 @@ function drupal_projects_page_alter(&$page) {
   }
 }
 function drupal_projects_toolbar_pre_render($toolbar) {
+	global $user;
 	// turn the configure link into 'new project link'
 	$toolbar['toolbar_drawer'][0]['configure']['#title'] = t('+ Project');
 	$toolbar['toolbar_drawer'][0]['configure']['#href']  = 'node/add/drupal-projects';
@@ -698,6 +737,10 @@ function drupal_projects_toolbar_pre_render($toolbar) {
 	$toolbar['toolbar_drawer'][0]['configure2']['#title'] = t('+ Personal profile');
 	$toolbar['toolbar_drawer'][0]['configure2']['#href']  = 'node/add/personal-profile';
 	
+	$toolbar['toolbar_drawer'][0]['configure8'] = $toolbar['toolbar_drawer'][0]['configure'];
+	$toolbar['toolbar_drawer'][0]['configure8']['#title'] = t('!! Broken links');
+	$toolbar['toolbar_drawer'][0]['configure8']['#href']  = 'user/' . @$user->uid . '/linkchecker';
+
 	return $toolbar;
 }
 /**
@@ -795,6 +838,9 @@ function drupal_projects_menu_link_alter(&$link) {
 
 function drupal_projects_translated_menu_link_alter(&$link) {
 	$matches = array();
+	// DISABLE FOR NOW as it gives a 2s penalty on every request
+	$link['hidden'] = 1;
+	return;
 	if (preg_match('/admin\/my-content\/(\d+)/', $link['link_path'], $matches) && $link['module'] == 'drupal_projects' && $link['menu_name'] == variable_get('drupal_projects_shortcut_set_name')) {
 		$project_tid = $matches[1];
 		$account = $GLOBALS['user'];
