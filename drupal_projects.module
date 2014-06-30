@@ -495,6 +495,10 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
  * custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
+	if ($form_id == 'drupal_projects_node_form' || $form_id == 'ufal_tool_node_form') {
+		// how to cite field should have open with the simple wysiwyg editor
+		$form['field_how_to_cite']['und'][0]['#format'] = 'full_html_simple_editor_';
+	}
 	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)_page_node_form$/', $form_id)) {
 		// Subpage
 		//$lang = $form['language']['#value']; // lang is und
