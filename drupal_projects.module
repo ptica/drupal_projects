@@ -376,6 +376,10 @@ function drupal_projects_custom_theme() {
 		menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
 		return 'drufal';
 	}
+	if (preg_match('/^(books|pbml|popularization|techrep)/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('publications'));
+		return 'drufal';
+	}
 	if (preg_match('/^events.*/', $request_path)) { 
 		menu_tree_set_path('main-menu', drupal_get_normal_path('events'));
 		return 'drufal';
