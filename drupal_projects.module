@@ -372,7 +372,7 @@ function drupal_projects_custom_theme() {
 		menu_tree_set_path('main-menu', drupal_get_normal_path('projects'));
 		return 'drufal';
 	}
-	if (preg_match('/^(teaching.*|courses)/', $request_path)) { 
+	if (preg_match('/^(teaching.*|courses|lct)/', $request_path)) { 
 		menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
 		return 'drufal';
 	}
