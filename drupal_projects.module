@@ -668,19 +668,19 @@ function drupal_projects_menu_local_tasks_alter(&$data, $router_item, $root_path
 			$term = taxonomy_term_load($project_tid);
 			$project = _term_to_project($term);
 			
-			if ($project->type == 'drupal_projects') {
+			if (@$project->type == 'drupal_projects') {
 				_add_local_task($data, t('Add page to project'), 'node/add/drupal-projects-page', "/$project_tid");
 				_add_local_task($data, t('Alter project menu'),  'admin/structure/menu/manage/' . _project_to_menu_name($project));
 			}
-			if ($project->type == 'personal_profile') {
+			if (@$project->type == 'personal_profile') {
 				_add_local_task($data, t('Add page to personal profile'), 'node/add/personal-profile-page', "/$project_tid");
 				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project)); 
 			}
-			if ($project->type == 'ufal_tool') {
+			if (@$project->type == 'ufal_tool') {
 				_add_local_task($data, t('Add page to tool site'), 'node/add/ufal-tool-page', "/$project_tid");
 				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project));
 			}
-			if ($project->type == 'ufal_course') {
+			if (@$project->type == 'ufal_course') {
 				_add_local_task($data, t('Add page to course site'), 'node/add/ufal-course-page', "/$project_tid");
 				_add_local_task($data, t('Alter menu'), 'admin/structure/menu/manage/' . _project_to_menu_name($project));
 			}
@@ -828,7 +828,7 @@ function drupal_projects_editors_menu_access() {
 	      // editors check
 	      //  || (user_access('assign workbench subaccess') && node_access('update', $project, $account))
 	      // owner check
-	      || (user_access('assign workbench subaccess') && $account->uid == $project->uid)
+	      || (user_access('assign workbench subaccess') && $account->uid == @$project->uid)
 	) {
 		return TRUE;
 	}
