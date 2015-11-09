@@ -253,6 +253,11 @@ function drupal_projects_term_create($node) {
 	$terms = taxonomy_get_term_by_name($t($node->title), $vocabulary->machine_name);
 	if (count($terms) > 0) {
 		// found existing
+		// TODO: this is a problem that forexample upon creation of new course
+		// with same title (as in a archive)
+		// a new course will end up in one project as the previous one!!!
+		// would like to disable it
+		// but there probalby was a use case for this???
 		$newterm = array_shift($terms);
 	} else {
 		// add a taxonomy term
