@@ -90,7 +90,7 @@ class views_plugin_style_rlist extends views_plugin_style_default {
 		}
 
 		// custom sort
-		$groups = array('Head of the Institute', 'Professors', 'Senior Research Associates', 'Research Assistants', 'Technical Specialists', 'Secretary');
+		$groups = array('Head of the Institute', 'Professors', 'Senior Research Associates', 'Research Assistants', 'Technical Specialists', 'Secretary', 'Alumni');
 		$ordered_sets = array();
 		foreach ($groups as $group) {
 			if (isset($sets[$group])) $ordered_sets[$group] = $sets[$group];
