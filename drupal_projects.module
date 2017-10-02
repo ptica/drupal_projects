@@ -504,14 +504,15 @@ function drupal_projects_preprocess_views_exposed_form(&$vars, $hook) {
  * custom redirect after node delete
  */
 function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
+	//$lang = $form['language']['#value']; // lang is und
+	$lang = 'und';
+
 	if ($form_id == 'drupal_projects_node_form' || $form_id == 'ufal_tool_node_form') {
 		// how to cite field should have open with the simple wysiwyg editor
 		$form['field_how_to_cite']['und'][0]['#format'] = 'full_html_simple_editor_';
 	}
 	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)_page_node_form$/', $form_id)) {
 		// Subpage
-		//$lang = $form['language']['#value']; // lang is und
-		$lang = 'und';
 		$tx = array(
 			'drupal_projects_page_node_form'  => 'drupal_projects_project',
 			'personal_profile_page_node_form' => 'field_profile',
@@ -578,6 +579,11 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	}
 	if ($form_id == 'ufal_course_node_form' && (arg(1) == 'add' || arg(2) == 'edit' || arg(1) == 'ajax')) {
 		// create Ufal Course
+		$form['field_course_term']['#access'] = false;
+	}
+	if ($form_id == 'ufal_course_node_form' && arg(2) == 'clone') {
+		// do not clone the course_term for Ufal Course
+		$form['field_course_term'][$lang]['#default_value'][0] = '_none';
 		$form['field_course_term']['#access'] = false;
 	}
 	if ($form_id == 'ufal_grant_node_form' && (arg(1) == 'add' || arg(2) == 'edit' || arg(1) == 'ajax')) {
