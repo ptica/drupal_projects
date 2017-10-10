@@ -129,6 +129,40 @@ function drupal_projects_node_insert($node) {
 			menu_link_save($shortcut_link);
 			menu_cache_clear_all();
 		}
+
+		// saving clone action
+		if ($node->clone_from_original_nid) {
+			// get subnodes
+			$original_node = node_load($node->clone_from_original_nid);
+			$original_project = $original_node;
+			$original_term = _project_to_term($original_node);
+			$result = _term_to_subnodes($original_term->tid);
+			$tx = array();
+			foreach ($result as $subnode) {
+				// copy the subnode
+				$original_node = node_load($subnode->nid);
+				menu_node_prepare($original_node);
+				$clone = _clone_node_prepare($original_node, $prefix_title=FALSE, $account=NULL);
+				_attach_node_to_project($clone, $term);
+				// add to the created  menu
+				$clone->menu['enabled'] = TRUE;
+				$clone->menu['link_title'] = $original_node->menu['link_title'];
+				$clone->menu['description'] = '';
+				$clone->menu['menu_name'] = $menu['menu_name'];
+				$alias = $node->path['alias'];
+				$new_alias = $alias . '/' . _project_slug($clone->title);
+				// remember the url's tx
+				$tx['/' . drupal_get_path_alias('node/'.$subnode->nid)] = '/' . $new_alias;
+				$clone->path['alias'] = $new_alias;
+				$clone->path['pathauto'] = 0;
+				node_save($clone);
+			}
+			// recompute links in $node->body!
+			$body = $node->body[LANGUAGE_NONE]['0']['value'];
+			$new_body = drupal_projects_recompute_links($body, $tx);
+			$node->body[LANGUAGE_NONE]['0']['value'] = $new_body;
+			field_attach_update('node', $node);  // save the fields without saving the node table
+		}
 	}
 }
 
@@ -224,6 +258,27 @@ function drupal_projects_node_presave($node) {
 	}
 }
 
+function drupal_projects_recompute_links($html, $tx) {
+    $doc = new DOMDocument;
+    @$doc->loadHTML(mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8'));
+    //@$doc->loadHTML($html);
+    // Get the links.
+    $links = $doc->getElementsByTagName('a');
+    foreach ($links as $link) {
+            $tx_link = @$tx[$link->getAttribute('href')];
+            if ($tx_link) {
+                    $link->setAttribute('href', $tx_link);
+            }
+    }
+    $new_html = $doc->saveHTML();
+    // Strip out the tags that loadHTML() introduces to get the clean HTML.
+    $patterns = array("/^\<\!DOCTYPE.*?<html><body>/si", "!</body></html>$!si");
+    $stripped_html = preg_replace($patterns, '', $new_html);
+    $stripped_html = html_entity_decode($stripped_html);
+
+    return $stripped_html;
+}
+
 function drupal_projects_shortcut_update($node) {
 	$shortcut_set = shortcut_set_load(variable_get('drupal_projects_shortcut_set_name'));
 	$term_tid = _project_to_term_tid($node);
@@ -271,6 +326,7 @@ function drupal_projects_term_create($node) {
 function _attach_node_to_project($node, $project_term) {
 	// attach node to taxonomy term
 	$project_field = _get_project_attachment_field($node);
+	$node->{$project_field}['und'] = array(); // remove old projects
 	$node->{$project_field}['und'][$project_term->tid] = (array) $project_term;
 	// even after localization fiels use 'und'
 	// $node->{$project_field}[$node->language][$project_term->tid] = (array) $project_term;
@@ -585,11 +641,28 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 		// do not clone the course_term for Ufal Course
 		$form['field_course_term'][$lang]['#default_value'][0] = '_none';
 		$form['field_course_term']['#access'] = false;
+		$form['additional_settings']['#default_tab'] = 'edit-path';
+		$y1 = date('Y'); $y2 = $y1 - 1;
+		$sis_code = strtolower($form['field_sis_code']['und'][0]['value']['#default_value']);
+		$sis_code = preg_split('/[\s,;]+/', $sis_code)[0];
+		$form['path']['alias']['#default_value'] = "courses/archive/$y2-$y1/$sis_code";
+		$form['#after_build'][] = 'drupal_projects_after_build';
+		$form['title_field']['und'][0]['value']['#default_value'] .= " $y2-$y1";
+		$form['field_hidden_in_our_courses']['und']['#default_value'] = 1;
 	}
 	if ($form_id == 'ufal_grant_node_form' && (arg(1) == 'add' || arg(2) == 'edit' || arg(1) == 'ajax')) {
 		// create Ufal Grant
 		$form['field_grant_term']['#access'] = false;
 	}
+}
+function drupal_projects_after_build($form, &$form_state) {
+	// after build, we uncheck the automatic alias generation via pathauto
+	// for cases we clone a minisite!
+	// Unchecks the checkbox for Generate automatic URL alias, if path exists.
+	if (isset($form['path']['pathauto']) && $form['path']['alias']['#default_value']) {
+		$form['path']['pathauto']['#checked'] = FALSE;
+	} 
+	return $form;
 }
 function _custom_redirect_after_delete($form, &$form_state) {
 	// GET destination has precedence over $form_state['redirect']
@@ -955,6 +1028,22 @@ function _term_to_project_finder($tid) {
 	$query->orderBy('t.nid', 'ASC');
 	$query->range(0, 1);
 	return $query->execute()->fetchField();
+}
+
+function _term_to_subnodes($tid) {
+        if (!variable_get('taxonomy_maintain_index_table', TRUE)) {
+                return array();
+        }
+        $query = db_select('taxonomy_index', 't');
+        $query->addTag('node_access');
+        $query->condition('tid', $tid);
+        $query->addField('t', 'nid');
+        $query->addField('t', 'tid');
+        // sort by nid ascending as the managed project type has to be created first
+        // and then subpages are added
+        $query->orderBy('t.nid', 'ASC');
+        $query->range(1, 9999999); // ugly way of doing just the OFFSET without LIMIT in sql
+        return $query->execute();
 }
 
 function _project_to_menu($node) {
