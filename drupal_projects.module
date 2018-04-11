@@ -131,7 +131,7 @@ function drupal_projects_node_insert($node) {
 		}
 
 		// saving clone action
-		if ($node->clone_from_original_nid) {
+		if (@$node->clone_from_original_nid) {
 			// get subnodes
 			$original_node = node_load($node->clone_from_original_nid);
 			$original_project = $original_node;
@@ -252,7 +252,7 @@ function drupal_projects_node_presave($node) {
 				$redirect->source_options = array();
 				$redirect->redirect = 'node/' . $node->nid;
 				$redirect->redirect_options = array();
-				redirect_save($redirect);
+				if ($redirect->source && $node->nid) redirect_save($redirect);
 			}
 		}
 	}
@@ -437,6 +437,10 @@ function drupal_projects_custom_theme() {
 		menu_tree_set_path('main-menu', drupal_get_normal_path('teaching'));
 		return 'drufal';
 	}
+	if (preg_match('/^(jobs)/', $request_path)) { 
+		menu_tree_set_path('main-menu', drupal_get_normal_path('jobs'));
+		return 'drufal';
+	}
 	if (preg_match('/^(books|pbml|popularization|techrep)/', $request_path)) { 
 		menu_tree_set_path('main-menu', drupal_get_normal_path('publications'));
 		return 'drufal';
@@ -566,6 +570,9 @@ function drupal_projects_form_alter(&$form, &$form_state, $form_id) {
 	if ($form_id == 'drupal_projects_node_form' || $form_id == 'ufal_tool_node_form') {
 		// how to cite field should have open with the simple wysiwyg editor
 		$form['field_how_to_cite']['und'][0]['#format'] = 'full_html_simple_editor_';
+	}
+	if (preg_match('/_node_form/', $form_id)) {
+		$form['additional_settings']['#default_tab'] = 'edit-revision-information';
 	}
 	if (preg_match('/^(drupal_projects|personal_profile|ufal_tool|ufal_course)_page_node_form$/', $form_id)) {
 		// Subpage
@@ -1156,3 +1163,4 @@ function computed_field_field_unix_name_compute(&$entity_field, $entity_type, $e
 		$entity_field[0]['value'] = $matches[1];
 	}	
 }
+
